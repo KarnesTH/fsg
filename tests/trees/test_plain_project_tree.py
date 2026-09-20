@@ -18,7 +18,7 @@ class TestCollect:
         """Keeps the handwritten files of the project."""
 
         output = PlainProjectTree(project).render()
-        for name in ("main.py", "README.md", "main_window.py", "home.svg"):
+        for name in ("__main__.py", "README.md", "main_window.py", "home.svg"):
             assert name in output
 
     def test_keeps_hidden_files_that_are_not_ignored(self, tmp_path: Path) -> None:
@@ -32,7 +32,7 @@ class TestCollect:
     def test_omits_empty_directories(self, tmp_path: Path) -> None:
         """Leaves out directories that contain no files."""
 
-        create_files(tmp_path, ["main.py"])
+        create_files(tmp_path, ["__main__.py"])
         (tmp_path / "hollow").mkdir()
         assert "hollow" not in PlainProjectTree(tmp_path).render()
 
@@ -49,12 +49,12 @@ class TestCollect:
     def test_skips_unreadable_directories(self, tmp_path: Path) -> None:
         """Continues the walk when a directory cannot be listed."""
 
-        create_files(tmp_path, ["main.py", "locked/secret.py"])
+        create_files(tmp_path, ["__main__.py", "locked/secret.py"])
         locked = tmp_path / "locked"
         locked.chmod(0o000)
         try:
             output = PlainProjectTree(tmp_path).render()
         finally:
             locked.chmod(0o755)
-        assert "main.py" in output
+        assert "__main__.py" in output
         assert "secret.py" not in output

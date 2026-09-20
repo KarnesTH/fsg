@@ -28,8 +28,8 @@ class TestIsRepository:
     def test_rejects_file_path(self, tmp_path: Path) -> None:
         """Reports False instead of raising when the path is a file."""
 
-        create_files(tmp_path, ["main.py"])
-        assert GitProjectTree.is_repository(tmp_path / "main.py") is False
+        create_files(tmp_path, ["__main__.py"])
+        assert GitProjectTree.is_repository(tmp_path / "__main__.py") is False
 
 
 @requires_git
@@ -39,7 +39,7 @@ class TestCollect:
     def test_honours_gitignore(self, tmp_path: Path) -> None:
         """Leaves out paths that are ignored by a .gitignore file."""
 
-        create_files(tmp_path, ["main.py", "logs/run.log"])
+        create_files(tmp_path, ["__main__.py", "logs/run.log"])
         (tmp_path / ".gitignore").write_text("logs/\n", encoding="utf-8")
         init_repository(tmp_path)
         output = GitProjectTree(tmp_path).render()
@@ -59,27 +59,27 @@ class TestCollect:
 
         init_repository(project)
         output = GitProjectTree(project).render()
-        for name in ("main.py", "README.md", "chip.py", "home.svg"):
+        for name in ("__main__.py", "README.md", "chip.py", "home.svg"):
             assert name in output
 
     def test_keeps_tracked_files(self, tmp_path: Path) -> None:
         """Includes files that are staged in the index."""
 
-        create_files(tmp_path, ["main.py"])
+        create_files(tmp_path, ["__main__.py"])
         init_repository(tmp_path)
-        subprocess.run(["git", "add", "main.py"], cwd=tmp_path, check=True)
-        assert "main.py" in GitProjectTree(tmp_path).render()
+        subprocess.run(["git", "add", "__main__.py"], cwd=tmp_path, check=True)
+        assert "__main__.py" in GitProjectTree(tmp_path).render()
 
     def test_returns_nothing_outside_repository(self, tmp_path: Path) -> None:
         """Returns an empty result when git fails because there is no repository."""
 
-        create_files(tmp_path, ["main.py"])
+        create_files(tmp_path, ["__main__.py"])
         assert GitProjectTree(tmp_path).collect() == []
 
     def test_matches_plain_output_for_a_clean_project(self, tmp_path: Path) -> None:
         """Produces the same tree as the plain walk when no repository-specific rules apply."""
 
-        create_files(tmp_path, ["main.py", "gui/window.py", "gui/__pycache__/window.pyc"])
+        create_files(tmp_path, ["__main__.py", "gui/window.py", "gui/__pycache__/window.pyc"])
         plain = PlainProjectTree(tmp_path).render()
         init_repository(tmp_path)
         assert GitProjectTree(tmp_path).render() == plain

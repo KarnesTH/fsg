@@ -48,7 +48,7 @@ class TestRender:
     def test_wraps_output_in_code_fence(self, tmp_path: Path) -> None:
         """Surrounds the tree with a plaintext Markdown fence."""
 
-        create_files(tmp_path, ["main.py"])
+        create_files(tmp_path, ["__main__.py"])
         output = PlainProjectTree(tmp_path).render()
         assert output.startswith("```plaintext\n")
         assert output.endswith("\n```")
@@ -56,17 +56,17 @@ class TestRender:
     def test_starts_with_root_directory_name(self, tmp_path: Path) -> None:
         """Renders the resolved directory name followed by a slash as the first line."""
 
-        create_files(tmp_path, ["main.py"])
+        create_files(tmp_path, ["__main__.py"])
         assert PlainProjectTree(tmp_path).render().splitlines()[1] == f"{tmp_path.name}/"
 
     def test_renders_directories_before_files(self, tmp_path: Path) -> None:
         """Places directories above files on the same level."""
 
-        create_files(tmp_path, ["README.md", "src/main.py"])
+        create_files(tmp_path, ["README.md", "src/__main__.py"])
         lines = PlainProjectTree(tmp_path).render().splitlines()
         assert lines[2:] == [
             "├── src/",
-            "│   └── main.py",
+            "│   └── __main__.py",
             "└── README.md",
             "```",
         ]
@@ -81,10 +81,10 @@ class TestRender:
     def test_marks_directories_with_trailing_slash(self, tmp_path: Path) -> None:
         """Appends a slash to directory names only."""
 
-        create_files(tmp_path, ["src/main.py"])
+        create_files(tmp_path, ["src/__main__.py"])
         output = PlainProjectTree(tmp_path).render()
         assert "└── src/" in output
-        assert "└── main.py" in output
+        assert "└── __main__.py" in output
 
     def test_indents_nested_levels(self, tmp_path: Path) -> None:
         """Carries the pipe prefix into the children of a directory that is not last."""
@@ -106,6 +106,6 @@ class TestRender:
     def test_resolves_relative_paths(self, tmp_path: Path, monkeypatch) -> None:
         """Uses the resolved directory name when the tree is created from a relative path."""
 
-        create_files(tmp_path, ["main.py"])
+        create_files(tmp_path, ["__main__.py"])
         monkeypatch.chdir(tmp_path)
         assert PlainProjectTree(Path(".")).render().splitlines()[1] == f"{tmp_path.name}/"

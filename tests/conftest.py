@@ -44,7 +44,7 @@ def project(tmp_path: Path) -> Path:
     create_files(
         tmp_path,
         [
-            "main.py",
+            "__main__.py",
             "README.md",
             "gui/__init__.py",
             "gui/main_window.py",
