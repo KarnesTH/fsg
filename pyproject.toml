@@ -1,5 +1,24 @@
 [project]
 name = "fsg"
 version = "0.1.0"
+description = "Prints a project structure as a tree for GitHub READMEs"
 requires-python = ">=3.14"
 dependencies = []
+
+[project.scripts]
+fsg = "fsg.cli:main"
+
+[dependency-groups]
+dev = [
+    "pytest>=9.1.1",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/fsg"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
