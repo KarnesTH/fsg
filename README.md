@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="assets/logo.svg" alt="fsg logo" width="128" />
+  <img src="https://raw.githubusercontent.com/KarnesTH/fsg/main/assets/logo.svg" alt="fsg logo" width="128" />
 </p>
 
 <h1 align="center">fsg</h1>
