@@ -4,6 +4,7 @@ import sys
 from importlib.metadata import version
 from pathlib import Path
 
+from fsg.readme_section import ReadmeSection
 from fsg.trees import ProjectTree
 
 
@@ -53,6 +54,21 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         dest="fence",
         help="print the tree without the surrounding Markdown code fence",
     )
+    sync = parser.add_mutually_exclusive_group()
+    sync.add_argument(
+        "-u",
+        "--update",
+        type=Path,
+        metavar="FILE",
+        help="write the tree between the <!-- fsg:start --> and <!-- fsg:end --> markers of FILE",
+    )
+    sync.add_argument(
+        "-c",
+        "--check",
+        type=Path,
+        metavar="FILE",
+        help="exit with status 1 when the tree between the markers of FILE is out of date",
+    )
     parser.add_argument(
         "--ascii",
         action="store_true",
@@ -72,7 +88,10 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
 
 
 def main(argv: list[str] | None = None) -> int:
-    """Renders the tree for the parsed path and options and writes it UTF-8 encoded to stdout.
+    """Renders the tree for the parsed path and options and writes it UTF-8 encoded to stdout, or into the marked section of a file.
+
+    Returns 0 on success, 1 when the path is not a directory or --check finds an outdated section,
+    and 2 when the file for --update or --check cannot be read or lacks the markers.
 
     Args:
         argv: Argument list to use instead of the command line arguments.
@@ -92,5 +111,21 @@ def main(argv: list[str] | None = None) -> int:
         exclude=args.exclude,
         fence=args.fence,
     )
-    print(tree.render())
+    output = tree.render()
+    target = args.update or args.check
+    if target is None:
+        print(output)
+        return 0
+    try:
+        section = ReadmeSection(target)
+    except (OSError, ValueError) as error:
+        print(error, file=sys.stderr)
+        return 2
+    if args.check:
+        if section.is_current(output):
+            return 0
+        print(f"{target} is out of date, run: fsg --update {target}", file=sys.stderr)
+        return 1
+    if section.update(output):
+        print(f"updated {target}", file=sys.stderr)
     return 0

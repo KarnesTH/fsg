@@ -1,0 +1,16 @@
+- id: fsg
+  name: fsg (update tree)
+  description: Writes the current directory tree between the fsg markers of README.md.
+  entry: fsg
+  language: python
+  args: [--update, README.md]
+  pass_filenames: false
+  always_run: true
+- id: fsg-check
+  name: fsg (check tree)
+  description: Fails when the directory tree between the fsg markers of README.md is out of date.
+  entry: fsg
+  language: python
+  args: [--check, README.md]
+  pass_filenames: false
+  always_run: true

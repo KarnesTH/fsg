@@ -5,6 +5,7 @@ from pathlib import Path
 import pytest
 
 from fsg.cli import main, parse_args
+from fsg.readme_section import END_MARKER, START_MARKER
 from tests.conftest import create_files
 
 
@@ -175,3 +176,84 @@ class TestMain:
         output = capsys.readouterr().out
         assert "src/" in output
         assert "main.py" not in output
+
+
+class TestSync:
+    """Covers updating and checking the marked section of a file."""
+
+    def test_rejects_update_together_with_check(self, tmp_path: Path) -> None:
+        """Exits when --update and --check are given at the same time."""
+
+        with pytest.raises(SystemExit):
+            parse_args(["--update", "README.md", "--check", "README.md"])
+
+    def test_update_writes_tree_into_section(self, tmp_path: Path, capsys) -> None:
+        """Writes the rendered tree between the markers and reports the change on stderr."""
+
+        create_files(tmp_path, ["main.py"])
+        readme = tmp_path / "README.md"
+        readme.write_text(f"# Title\n{START_MARKER}\n{END_MARKER}\n", encoding="utf-8")
+        assert main(["--update", str(readme), str(tmp_path)]) == 0
+        text = readme.read_text(encoding="utf-8")
+        assert "── main.py" in text
+        assert text.startswith(f"# Title\n{START_MARKER}\n```plaintext\n")
+        captured = capsys.readouterr()
+        assert captured.out == ""
+        assert "updated" in captured.err
+
+    def test_update_is_silent_when_current(self, tmp_path: Path, capsys) -> None:
+        """Writes nothing to stderr when the section is already current."""
+
+        create_files(tmp_path, ["main.py"])
+        readme = tmp_path / "README.md"
+        readme.write_text(f"{START_MARKER}\n{END_MARKER}\n", encoding="utf-8")
+        main(["--update", str(readme), str(tmp_path)])
+        capsys.readouterr()
+        assert main(["--update", str(readme), str(tmp_path)]) == 0
+        assert capsys.readouterr().err == ""
+
+    def test_check_passes_after_update(self, tmp_path: Path) -> None:
+        """Returns 0 when the section matches the tree rendered with the same options."""
+
+        create_files(tmp_path, ["main.py", "src/app.py"])
+        readme = tmp_path / "README.md"
+        readme.write_text(f"{START_MARKER}\n{END_MARKER}\n", encoding="utf-8")
+        main(["-u", str(readme), "--depth", "1", str(tmp_path)])
+        assert main(["-c", str(readme), "--depth", "1", str(tmp_path)]) == 0
+
+    def test_check_fails_on_outdated_section(self, tmp_path: Path, capsys) -> None:
+        """Returns 1 and reports the file on stderr when a new file is missing from the section."""
+
+        create_files(tmp_path, ["main.py"])
+        readme = tmp_path / "README.md"
+        readme.write_text(f"{START_MARKER}\n{END_MARKER}\n", encoding="utf-8")
+        main(["--update", str(readme), str(tmp_path)])
+        create_files(tmp_path, ["new.py"])
+        capsys.readouterr()
+        assert main(["--check", str(readme), str(tmp_path)]) == 1
+        assert "out of date" in capsys.readouterr().err
+
+    def test_check_does_not_modify_file(self, tmp_path: Path) -> None:
+        """Leaves the file unchanged when the section is outdated."""
+
+        create_files(tmp_path, ["main.py"])
+        readme = tmp_path / "README.md"
+        readme.write_text(f"{START_MARKER}\nold\n{END_MARKER}\n", encoding="utf-8")
+        main(["--check", str(readme), str(tmp_path)])
+        assert readme.read_text(encoding="utf-8") == f"{START_MARKER}\nold\n{END_MARKER}\n"
+
+    @pytest.mark.parametrize("option", ["--update", "--check"])
+    def test_reports_missing_markers(self, option: str, tmp_path: Path, capsys) -> None:
+        """Returns 2 and reports the missing markers on stderr."""
+
+        readme = tmp_path / "README.md"
+        readme.write_text("# Title\n", encoding="utf-8")
+        assert main([option, str(readme), str(tmp_path)]) == 2
+        assert "missing" in capsys.readouterr().err
+
+    @pytest.mark.parametrize("option", ["--update", "--check"])
+    def test_reports_missing_file(self, option: str, tmp_path: Path, capsys) -> None:
+        """Returns 2 and reports the error on stderr when the file does not exist."""
+
+        assert main([option, str(tmp_path / "MISSING.md"), str(tmp_path)]) == 2
+        assert "MISSING.md" in capsys.readouterr().err
