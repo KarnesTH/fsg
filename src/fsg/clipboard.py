@@ -46,9 +46,9 @@ class Clipboard:
                 check=False,
             )
         except OSError as error:
-            raise ClipboardError(f"{Path(command[0]).name} cannot run: {error.strerror or error}") from None
+            raise ClipboardError(f"{Path(command[0]).stem} cannot run: {error.strerror or error}") from None
         if result.returncode != 0:
-            raise ClipboardError(f"{Path(command[0]).name} failed with exit status {result.returncode}")
+            raise ClipboardError(f"{Path(command[0]).stem} failed with exit status {result.returncode}")
 
     def _command(self, text: str) -> tuple[list[str], bytes, dict[str, str] | None]:
         """Returns the command line, the encoded input and the environment of the clipboard tool for this system.
