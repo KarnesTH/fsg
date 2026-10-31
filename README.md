@@ -8,6 +8,7 @@
   <img src="https://img.shields.io/badge/version-0.1.0-blue" alt="Version 0.1.0" />
   <img src="https://img.shields.io/badge/python-3.14%2B-3776AB?logo=python&logoColor=white" alt="Python 3.14+" />
   <img src="https://img.shields.io/badge/dependencies-none-brightgreen" alt="No dependencies" />
+  <img src="https://img.shields.io/badge/license-MIT-green" alt="MIT License" />
 </p>
 
 <p align="center">Prints a project structure as a tree, ready to paste into a GitHub README.</p>
