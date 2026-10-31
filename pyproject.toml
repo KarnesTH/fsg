@@ -22,3 +22,11 @@ packages = ["src/fsg"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+
+[tool.fsg]
+path = "src"
+depth = 2
+dirs-only = false
+exclude = ["*.log", "docs/api"]
+fence = true
+ascii = false
