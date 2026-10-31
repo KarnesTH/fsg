@@ -18,7 +18,8 @@
 - Inside a git repository, only files git tracks or would track are listed (`.gitignore` is respected)
 - Outside a repository, common generated and tool directories are skipped (`.venv`, `__pycache__`, `node_modules`, `target`, `.idea`, …)
 - Directories first, entries sorted case-insensitively, empty directories omitted
-- Output is wrapped in a `plaintext` code fence and always written as UTF-8
+- Limit the depth, render directories only or exclude entries by glob pattern
+- Output is wrapped in a `plaintext` code fence (optional) and always written as UTF-8
 - Optional ASCII branches (`|--`, `` `-- ``) for environments without Unicode support
 
 ## Installation
@@ -34,15 +35,19 @@ uv tool install .
 ## Usage
 
 ```bash
-fsg [-h] [--ascii] [-V] [path]
+fsg [-h] [-d N] [--dirs-only] [-e PATTERN] [--no-fence] [--ascii] [-V] [path]
 ```
 
-| Argument          | Description                                                |
-|-------------------|------------------------------------------------------------|
-| `path`            | Directory to render (default: current directory)           |
-| `--ascii`         | Draw the tree with ASCII instead of box-drawing characters |
-| `-h`, `--help`    | Show the help text and exit                                |
-| `-V`, `--version` | Show the version and exit                                  |
+| Argument                  | Description                                                                 |
+|---------------------------|-----------------------------------------------------------------------------|
+| `path`                    | Directory to render (default: current directory)                            |
+| `-d N`, `--depth N`       | Render only the first N levels below the root                               |
+| `--dirs-only`             | Render directories only                                                     |
+| `-e`, `--exclude PATTERN` | Leave out entries whose name or relative path matches the glob (repeatable) |
+| `--no-fence`              | Print the tree without the Markdown code fence                              |
+| `--ascii`                 | Draw the tree with ASCII instead of box-drawing characters                  |
+| `-h`, `--help`            | Show the help text and exit                                                 |
+| `-V`, `--version`         | Show the version and exit                                                   |
 
 Example:
 

@@ -34,6 +34,12 @@ class TestForPath:
 
         assert ProjectTree.for_path(tmp_path, use_ascii=True).glyphs == ASCII_GLYPHS
 
+    def test_passes_render_options(self, tmp_path: Path) -> None:
+        """Hands depth, dirs_only, exclude and fence over to the selected implementation."""
+
+        tree = ProjectTree.for_path(tmp_path, depth=2, dirs_only=True, exclude=["*.pyc"], fence=False)
+        assert (tree.depth, tree.dirs_only, tree.exclude, tree.fence) == (2, True, ("*.pyc",), False)
+
 
 class TestCollect:
     """Covers the interface the collecting implementations fill in."""
@@ -126,3 +132,102 @@ class TestRender:
             "|       `-- window.py",
             "`-- README.md",
         ]
+
+
+class TestDepth:
+    """Covers limiting the rendered levels."""
+
+    def test_renders_only_top_level(self, tmp_path: Path) -> None:
+        """Renders the entries directly below the root and keeps the slash on directories."""
+
+        create_files(tmp_path, ["src/gui/window.py", "README.md"])
+        lines = PlainProjectTree(tmp_path, depth=1).render().splitlines()
+        assert lines[2:-1] == ["├── src/", "└── README.md"]
+
+    def test_renders_given_number_of_levels(self, tmp_path: Path) -> None:
+        """Stops descending once the given level is reached."""
+
+        create_files(tmp_path, ["src/gui/window.py", "src/main.py"])
+        output = PlainProjectTree(tmp_path, depth=2).render()
+        assert "gui/" in output
+        assert "main.py" in output
+        assert "window.py" not in output
+
+    def test_renders_all_levels_without_limit(self, tmp_path: Path) -> None:
+        """Renders every level when no depth is given."""
+
+        create_files(tmp_path, ["a/b/c/d/e.py"])
+        assert "e.py" in PlainProjectTree(tmp_path).render()
+
+
+class TestDirsOnly:
+    """Covers rendering directories only."""
+
+    def test_leaves_out_files(self, tmp_path: Path) -> None:
+        """Renders the directory structure without any file."""
+
+        create_files(tmp_path, ["README.md", "src/main.py", "src/gui/window.py"])
+        lines = PlainProjectTree(tmp_path, dirs_only=True).render().splitlines()
+        assert lines[2:-1] == ["└── src/", "    └── gui/"]
+
+    def test_marks_last_directory_after_trailing_files(self, tmp_path: Path) -> None:
+        """Uses the last connector for the final directory even when files follow it."""
+
+        create_files(tmp_path, ["docs/a.md", "src/main.py", "z.txt"])
+        lines = PlainProjectTree(tmp_path, dirs_only=True).render().splitlines()
+        assert lines[2:-1] == ["├── docs/", "└── src/"]
+
+
+class TestExclude:
+    """Covers leaving out entries by glob pattern."""
+
+    def test_excludes_by_name(self, tmp_path: Path) -> None:
+        """Leaves out every entry whose name matches the pattern."""
+
+        create_files(tmp_path, ["main.py", "notes.txt", "docs/todo.txt"])
+        output = PlainProjectTree(tmp_path, exclude=["*.txt"]).render()
+        assert "main.py" in output
+        assert ".txt" not in output
+        assert "docs" not in output
+
+    def test_excludes_directory_with_content(self, tmp_path: Path) -> None:
+        """Leaves out a directory and everything below it when its name matches."""
+
+        create_files(tmp_path, ["main.py", "tests/test_main.py"])
+        output = PlainProjectTree(tmp_path, exclude=["tests"]).render()
+        assert "tests" not in output
+        assert "test_main.py" not in output
+
+    def test_excludes_by_relative_path(self, tmp_path: Path) -> None:
+        """Matches the pattern against the relative path so nested entries can be targeted."""
+
+        create_files(tmp_path, ["docs/api/index.md", "docs/guide.md", "api/client.py"])
+        output = PlainProjectTree(tmp_path, exclude=["docs/api"]).render()
+        assert "index.md" not in output
+        assert "guide.md" in output
+        assert "client.py" in output
+
+    def test_matches_case_sensitively(self, tmp_path: Path) -> None:
+        """Keeps entries whose name differs from the pattern only in case."""
+
+        create_files(tmp_path, ["README.md"])
+        assert "README.md" in PlainProjectTree(tmp_path, exclude=["readme.md"]).render()
+
+    def test_combines_multiple_patterns(self, tmp_path: Path) -> None:
+        """Leaves out entries matching any of the given patterns."""
+
+        create_files(tmp_path, ["main.py", "a.log", "b.tmp"])
+        output = PlainProjectTree(tmp_path, exclude=["*.log", "*.tmp"]).render()
+        assert "main.py" in output
+        assert "a.log" not in output
+        assert "b.tmp" not in output
+
+
+class TestFence:
+    """Covers disabling the code fence."""
+
+    def test_renders_without_fence(self, tmp_path: Path) -> None:
+        """Returns the bare tree when fence is disabled."""
+
+        create_files(tmp_path, ["main.py"])
+        assert PlainProjectTree(tmp_path, fence=False).render() == f"{tmp_path.name}/\n└── main.py"

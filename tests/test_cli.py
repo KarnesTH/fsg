@@ -37,11 +37,38 @@ class TestParseArgs:
 
         assert parse_args(["--ascii"]).use_ascii is True
 
+    def test_render_options_default(self) -> None:
+        """Returns no depth, all entries, no exclusions and an enabled fence when no option is given."""
+
+        args = parse_args([])
+        assert (args.depth, args.dirs_only, args.exclude, args.fence) == (None, False, [], True)
+
+    def test_reads_render_options(self) -> None:
+        """Reads depth, dirs-only, repeated excludes and no-fence."""
+
+        args = parse_args(["-d", "2", "--dirs-only", "-e", "*.log", "--exclude", "tests", "--no-fence"])
+        assert (args.depth, args.dirs_only, args.exclude, args.fence) == (2, True, ["*.log", "tests"], False)
+
+    @pytest.mark.parametrize("depth", ["0", "-1"])
+    def test_rejects_depth_below_one(self, depth: str, capsys) -> None:
+        """Exits with status 2 when the depth is smaller than 1."""
+
+        with pytest.raises(SystemExit) as exit_info:
+            parse_args(["--depth", depth])
+        assert exit_info.value.code == 2
+        assert "--depth must be at least 1" in capsys.readouterr().err
+
+    def test_rejects_non_numeric_depth(self) -> None:
+        """Exits when the depth is not an integer."""
+
+        with pytest.raises(SystemExit):
+            parse_args(["--depth", "two"])
+
     def test_rejects_unknown_options(self) -> None:
         """Exits when an unknown option is given."""
 
         with pytest.raises(SystemExit):
-            parse_args(["--depth", "2"])
+            parse_args(["--unknown"])
 
 
 class TestMain:
@@ -128,3 +155,23 @@ class TestMain:
         assert main([str(tmp_path)]) == 0
         stdout.flush()
         assert "└── main.py" in buffer.getvalue().decode("utf-8")
+
+    def test_applies_render_options(self, tmp_path: Path, capsys) -> None:
+        """Passes the parsed options on to the rendered tree."""
+
+        create_files(tmp_path, ["main.py", "src/app.py", "src/gui/window.py", "debug.log"])
+        assert main(["--depth", "2", "--exclude", "*.log", "--no-fence", str(tmp_path)]) == 0
+        output = capsys.readouterr().out
+        assert not output.startswith("```")
+        assert "app.py" in output
+        assert "window.py" not in output
+        assert "debug.log" not in output
+
+    def test_applies_dirs_only(self, tmp_path: Path, capsys) -> None:
+        """Renders directories only when --dirs-only is given."""
+
+        create_files(tmp_path, ["main.py", "src/app.py"])
+        assert main(["--dirs-only", str(tmp_path)]) == 0
+        output = capsys.readouterr().out
+        assert "src/" in output
+        assert "main.py" not in output
