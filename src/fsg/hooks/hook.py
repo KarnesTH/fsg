@@ -1,11 +1,12 @@
 from __future__ import annotations
 
+from abc import ABC, abstractmethod
 from pathlib import Path
 
 PRE_COMMIT_CONFIG = ".pre-commit-config.yaml"
 
 
-class Hook:
+class Hook(ABC):
     """Adds the fsg update step for one target file to the commit hooks of a git repository."""
 
     def __init__(self, repository: Path, target: str) -> None:
@@ -35,12 +36,10 @@ class Hook:
             return PreCommitHook(repository, target)
         return GitHook(repository, target)
 
+    @abstractmethod
     def location(self) -> Path:
         """Returns the file the hook is written to."""
 
-        raise NotImplementedError
-
+    @abstractmethod
     def install(self) -> bool:
         """Adds the fsg step to the hook file and returns False when it is already present."""
-
-        raise NotImplementedError

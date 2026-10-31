@@ -1,5 +1,7 @@
 from pathlib import Path
 
+import pytest
+
 from fsg.constants import ASCII_GLYPHS
 from fsg.trees import GitProjectTree, PlainProjectTree, ProjectTree
 from tests.conftest import create_files, init_repository, requires_git
@@ -44,14 +46,11 @@ class TestForPath:
 class TestCollect:
     """Covers the interface the collecting implementations fill in."""
 
-    def test_raises_without_implementation(self, tmp_path: Path) -> None:
-        """Rejects collecting on the base class itself."""
+    def test_cannot_instantiate_base_class(self, tmp_path: Path) -> None:
+        """Rejects creating the abstract base class without a collect implementation."""
 
-        try:
-            ProjectTree(tmp_path).collect()
-        except NotImplementedError:
-            return
-        raise AssertionError("collect did not raise NotImplementedError")
+        with pytest.raises(TypeError, match="abstract"):
+            ProjectTree(tmp_path)
 
 
 class TestRender:

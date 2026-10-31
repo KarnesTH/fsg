@@ -3,6 +3,22 @@
 All notable changes to this project are documented in this file.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses [Semantic Versioning](https://semver.org/).
 
+## [0.2.0] - 2026-10-31
+
+### Changed
+
+- Status lines start with a symbol (`✔`, `•`, `✖`, or `[ok]`, `[info]`, `[error]` with `--ascii`), are colored in terminals and show a hint on how to fix a problem; `NO_COLOR` and `FORCE_COLOR` are respected
+- Every error exits with status 2, including a path that is not a directory; status 1 only means an outdated tree
+- The search for a config file stops at the git repository root, or at the home directory outside a repository
+- Indented code blocks and longer code fences are recognized when looking for the markers
+
+### Fixed
+
+- Tracked files deleted from the working tree no longer appear in the tree
+- `--setup-hook` adds the fsg step before a final `exec` line of an existing git hook
+- An existing pre-commit entry is detected by its `repo:` line, so comments or similarly named repositories no longer block the setup
+- `--version` and `--setup-hook` work when fsg runs from a source checkout without being installed
+
 ## [0.1.1] - 2026-10-31
 
 ### Security
@@ -32,5 +48,6 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 - Configuration via `.fsg.toml` or `[tool.fsg]` in `pyproject.toml`
 - `--version` and `--help`
 
+[0.2.0]: https://github.com/KarnesTH/fsg/releases/tag/v0.2.0
 [0.1.1]: https://github.com/KarnesTH/fsg/releases/tag/v0.1.1
 [0.1.0]: https://github.com/KarnesTH/fsg/releases/tag/v0.1.0

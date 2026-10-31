@@ -3,6 +3,7 @@ from pathlib import Path
 
 import pytest
 
+from fsg.errors import HookError
 from fsg.hooks import PreCommitHook
 
 VERSION = version("fsg")
@@ -103,10 +104,41 @@ class TestInstall:
 
     @pytest.mark.parametrize("text", ["repos: []\n", "default_stages: [pre-commit]\n", "  repos:\n"])
     def test_rejects_config_without_block_repos(self, tmp_path: Path, text: str) -> None:
-        """Raises ValueError and leaves the file untouched when no top-level block repos key exists."""
+        """Raises HookError with a hint and leaves the file untouched when no top-level block repos key exists."""
 
         config = tmp_path / ".pre-commit-config.yaml"
         config.write_text(text, encoding="utf-8")
-        with pytest.raises(ValueError, match="manually"):
+        with pytest.raises(HookError, match="repos") as error:
             PreCommitHook(tmp_path, "README.md").install()
+        assert "manually" in error.value.hint
         assert config.read_text(encoding="utf-8") == text
+    @pytest.mark.parametrize(
+        "line",
+        [
+            "  - repo: https://github.com/KarnesTH/fsg",
+            "-   repo: 'https://github.com/karnesth/fsg.git'  # tree",
+            '  - repo: "https://github.com/KarnesTH/fsg/"',
+        ],
+    )
+    def test_detects_existing_repo_line(self, tmp_path: Path, line: str) -> None:
+        """Recognizes the fsg repository in quoted, .git and commented forms."""
+
+        config = tmp_path / ".pre-commit-config.yaml"
+        config.write_text(f"repos:\n{line}\n", encoding="utf-8")
+        assert PreCommitHook(tmp_path, "README.md").install() is False
+
+    def test_ignores_similar_repositories_and_comments(self, tmp_path: Path) -> None:
+        """Adds the entry when only a comment or another repository mentions the fsg name."""
+
+        text = "# see KarnesTH/fsg\nrepos:\n  - repo: https://github.com/KarnesTH/fsg-tools\n"
+        assert "id: fsg" in install(tmp_path, text)
+
+    def test_rejects_unknown_version(self, tmp_path: Path, monkeypatch) -> None:
+        """Raises HookError instead of writing an invalid rev when the installed version is unknown."""
+
+        monkeypatch.setattr("fsg.__version__", "unknown")
+        config = tmp_path / ".pre-commit-config.yaml"
+        config.write_text("repos:\n", encoding="utf-8")
+        with pytest.raises(HookError, match="version"):
+            PreCommitHook(tmp_path, "README.md").install()
+        assert config.read_text(encoding="utf-8") == "repos:\n"

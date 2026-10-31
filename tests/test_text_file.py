@@ -3,6 +3,7 @@ from pathlib import Path
 
 import pytest
 
+from fsg.errors import FileError
 from fsg.text_file import TextFile
 
 
@@ -28,14 +29,14 @@ class TestRead:
     def test_rejects_missing_file(self, tmp_path: Path) -> None:
         """Raises ValueError when the file does not exist."""
 
-        with pytest.raises(ValueError, match="file not found"):
+        with pytest.raises(FileError, match="file not found"):
             TextFile(tmp_path / "a.md").read()
 
     def test_rejects_non_utf8_file(self, tmp_path: Path) -> None:
         """Raises ValueError when the content is not valid UTF-8."""
 
         (tmp_path / "a.md").write_bytes(b"\xff")
-        with pytest.raises(ValueError, match="UTF-8"):
+        with pytest.raises(FileError, match="UTF-8"):
             TextFile(tmp_path / "a.md").read()
 
 
@@ -70,7 +71,7 @@ class TestWrite:
             raise OSError("disk full")
 
         monkeypatch.setattr("os.replace", fail)
-        with pytest.raises(OSError, match="disk full"):
+        with pytest.raises(FileError, match="disk full"):
             TextFile(tmp_path / "a.md").write("new")
         assert (tmp_path / "a.md").read_text(encoding="utf-8") == "original"
         assert [path.name for path in tmp_path.iterdir()] == ["a.md"]

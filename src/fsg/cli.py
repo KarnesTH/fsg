@@ -1,10 +1,12 @@
 import argparse
 import io
 import sys
-from importlib.metadata import version
 from pathlib import Path
 
+import fsg
 from fsg.config import Config
+from fsg.console import Console
+from fsg.errors import FsgError, HookError, PathError
 from fsg.git import Git
 from fsg.hooks import GitHook, Hook
 from fsg.readme_section import ReadmeSection
@@ -91,7 +93,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         "-V",
         "--version",
         action="version",
-        version=f"%(prog)s {version('fsg')}",
+        version=f"%(prog)s {fsg.__version__}",
     )
     args = parser.parse_args(argv)
     if args.depth is not None and args.depth < 1:
@@ -100,13 +102,12 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
 
 
 def main(argv: list[str] | None = None) -> int:
-    """Runs the mode selected by the arguments and returns the exit status.
+    """Runs the mode selected by the arguments, reports the result on the console and returns the exit status.
 
     Without a mode the tree is rendered from the arguments alone and written UTF-8 encoded to stdout.
     With --update or --check the config found from the directory of the target file fills in the path
-    and every option not given. Returns 0 on success, 1 when the path is not a directory or --check finds
-    an outdated tree, and 2 when a file cannot be read, lacks the markers, the config is invalid or the
-    hook cannot be set up.
+    and every option not given. Returns 0 on success, 1 when --check finds an outdated tree, and 2 for
+    every error.
 
     Args:
         argv: Argument list to use instead of the command line arguments.
@@ -116,113 +117,80 @@ def main(argv: list[str] | None = None) -> int:
     for stream in (sys.stdout, sys.stderr):
         if isinstance(stream, io.TextIOWrapper):
             stream.reconfigure(encoding="utf-8")
-    if args.setup_hook:
-        return _setup_hook(args.setup_hook)
-    target = args.update or args.check
-    config = Config()
-    if target is not None:
-        try:
-            config = Config.find(target.resolve().parent)
-        except (OSError, ValueError) as error:
-            return _fail(str(error), 2)
-    root = args.path or config.path or Path(".")
-    if not root.is_dir():
-        return _fail(f"{root}: not a directory", 1)
+    console = Console(use_ascii=bool(args.use_ascii))
     try:
-        output = ProjectTree.for_path(root, **config.merge(args)).render()
-    except OSError as error:
-        return _fail(_reason(error), 2)
-    if target is None:
-        print(output)
-        return 0
-    return _sync(target, output, check=bool(args.check))
+        if args.setup_hook:
+            return _setup_hook(console, args.setup_hook)
+        return _render(console, args)
+    except FsgError as error:
+        console.error(error)
+        return 2
 
 
-def _sync(target: Path, output: str, check: bool) -> int:
-    """Compares or writes the tree in the marked section of the target and prints one status line.
+def _render(console: Console, args: argparse.Namespace) -> int:
+    """Renders the tree and prints it, or compares or writes it in the marked section of the target file.
 
     Args:
-        target: File holding the markers.
-        output: Rendered tree.
-        check: Only compares when True, otherwise writes the tree.
+        console: Console the result is reported on.
+        args: Parsed command line arguments.
+
+    Raises:
+        FsgError: The config, the directory, git or the target file fails.
     """
 
-    try:
-        section = ReadmeSection(target)
-    except (OSError, ValueError) as error:
-        return _fail(f"{target}: {_reason(error)}", 2)
-    if check:
+    target = args.update or args.check
+    config = Config.find(target.resolve().parent) if target is not None else Config()
+    root = args.path or config.path or Path(".")
+    if not root.is_dir():
+        raise PathError(f"{root}: not a directory", "pass an existing directory or set path in the config")
+    output = ProjectTree.for_path(root, **config.merge(args)).render()
+    if target is None:
+        console.output(output)
+        return 0
+    section = ReadmeSection(target)
+    if args.check:
         if section.is_current(output):
-            print(f"{target}: tree is up to date")
+            console.success(f"{target}: tree is up to date")
             return 0
-        print(f"{target}: tree is out of date, run fsg --update {target}", file=sys.stderr)
+        console.failure(f"{target}: tree is out of date", f"run fsg --update {target}")
         return 1
-    try:
-        changed = section.update(output)
-    except OSError as error:
-        return _fail(f"{target}: {_reason(error)}", 2)
-    if changed:
-        print(f"{target}: tree updated")
+    if section.update(output):
+        console.success(f"{target}: tree updated")
     else:
-        print(f"{target}: tree already up to date")
+        console.info(f"{target}: tree already up to date")
     return 0
 
 
-def _setup_hook(target: Path) -> int:
-    """Adds the update step for the target to the hooks of the repository around the current directory and prints the result.
+def _setup_hook(console: Console, target: Path) -> int:
+    """Adds the update step for the target to the hooks of the repository around the current directory and reports the result.
 
     The target must exist and hold both markers before a hook is written.
 
     Args:
+        console: Console the result is reported on.
         target: File holding the markers, relative to the current directory.
+
+    Raises:
+        FsgError: The directory is not in a repository, the target is invalid or the hook cannot be written.
     """
 
     repository = Git(Path.cwd()).toplevel()
     if repository is None:
-        return _fail("not inside a git repository", 2)
-    try:
-        ReadmeSection(target)
-    except (OSError, ValueError) as error:
-        return _fail(f"{target}: {_reason(error)}", 2)
-    try:
-        relative = target.resolve().relative_to(repository.resolve()).as_posix()
-    except ValueError:
-        return _fail(f"{target}: not inside the repository {repository}", 2)
-    hook = Hook.for_repository(repository, relative)
-    try:
-        location = hook.location()
-        added = hook.install()
-    except (OSError, ValueError) as error:
-        return _fail(_reason(error), 2)
+        raise HookError("not inside a git repository", "run fsg --setup-hook inside your project")
+    ReadmeSection(target)
     root = repository.resolve()
+    resolved = target.resolve()
+    if not resolved.is_relative_to(root):
+        raise HookError(f"{target}: not inside the repository {repository}")
+    hook = Hook.for_repository(repository, resolved.relative_to(root).as_posix())
+    location = hook.location()
+    added = hook.install()
     location = location.resolve()
     shown = (location.relative_to(root) if location.is_relative_to(root) else location).as_posix()
     if not added:
-        print(f"{shown}: fsg hook already present")
+        console.info(f"{shown}: fsg hook already present")
     elif isinstance(hook, GitHook):
-        print(f"{shown}: fsg hook added")
+        console.success(f"{shown}: fsg hook added")
     else:
-        print(f"{shown}: fsg hook added, run 'pre-commit install' if not done yet")
+        console.success(f"{shown}: fsg hook added", "run pre-commit install if not done yet")
     return 0
-
-
-def _fail(message: str, status: int) -> int:
-    """Prints the message prefixed with fsg: to stderr and returns the status.
-
-    Args:
-        message: Error description.
-        status: Exit status to return.
-    """
-
-    print(f"fsg: {message}", file=sys.stderr)
-    return status
-
-
-def _reason(error: Exception) -> str:
-    """Returns the operating system message of an OSError with a strerror, otherwise the text of the error.
-
-    Args:
-        error: Error to describe.
-    """
-
-    return getattr(error, "strerror", None) or str(error)

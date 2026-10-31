@@ -5,6 +5,8 @@ import stat
 import tempfile
 from pathlib import Path
 
+from fsg.errors import FileError
+
 
 class TextFile:
     """Reads and writes a UTF-8 text file without newline translation, replacing it atomically on write."""
@@ -32,17 +34,18 @@ class TextFile:
         """Returns the content of the file with its original line endings.
 
         Raises:
-            ValueError: The file does not exist or is not valid UTF-8.
-            OSError: The file cannot be read.
+            FileError: The file does not exist, is not valid UTF-8 or cannot be read.
         """
 
         try:
             with self.path.open(encoding="utf-8", newline="") as file:
                 return file.read()
         except FileNotFoundError:
-            raise ValueError("file not found") from None
+            raise FileError(f"{self.path}: file not found") from None
         except UnicodeDecodeError:
-            raise ValueError("not a UTF-8 text file") from None
+            raise FileError(f"{self.path}: not a UTF-8 text file") from None
+        except OSError as error:
+            raise FileError(f"{self.path}: {error.strerror or error}") from None
 
     def write(self, text: str, mode: int | None = None) -> None:
         """Writes the text to a temporary file next to the target and moves it over the target in one step.
@@ -55,7 +58,23 @@ class TextFile:
             mode: Permission bits for a newly created file.
 
         Raises:
-            OSError: The file cannot be written.
+            FileError: The file cannot be written.
+        """
+
+        try:
+            self._replace(text, mode)
+        except OSError as error:
+            raise FileError(f"{self.path}: {error.strerror or error}") from None
+
+    def _replace(self, text: str, mode: int | None) -> None:
+        """Writes the text to a temporary file in the target directory, applies the permission bits and renames it onto the target.
+
+        Args:
+            text: Content to write.
+            mode: Permission bits for a newly created file.
+
+        Raises:
+            OSError: A file system operation fails; the temporary file is removed.
         """
 
         target = self.path.resolve()

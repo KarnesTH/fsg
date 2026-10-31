@@ -5,6 +5,9 @@ import tomllib
 from pathlib import Path
 from typing import Any
 
+from fsg.errors import ConfigError
+from fsg.git import Git
+
 CONFIG_FILE = ".fsg.toml"
 PYPROJECT_FILE = "pyproject.toml"
 
@@ -20,7 +23,7 @@ class Config:
             source: File the values were read from, or None when no config file was found.
 
         Raises:
-            ValueError: A key is unknown or a value has the wrong type.
+            ConfigError: A key is unknown or a value has the wrong type.
         """
 
         self.source = source
@@ -37,18 +40,19 @@ class Config:
     def find(cls, start: Path) -> Config:
         """Searches the start directory and its parents for a .fsg.toml or a pyproject.toml with a [tool.fsg] table.
 
-        The first directory containing either file wins; inside one directory .fsg.toml takes precedence.
-        Returns an empty Config when nothing is found.
+        The search stops at the root of the git working tree; outside a repository it stops at the home directory,
+        or after the start directory when that lies outside the home directory. The first directory containing
+        either file wins; inside one directory .fsg.toml takes precedence. Returns an empty Config when nothing is found.
 
         Args:
             start: Directory the search begins in.
 
         Raises:
-            ValueError: A config file is not valid TOML or holds invalid options.
+            ConfigError: A config file cannot be read, is not valid TOML or holds invalid options.
         """
 
         start = Path(start).resolve()
-        for directory in (start, *start.parents):
+        for directory in cls._search_path(start):
             config_file = directory / CONFIG_FILE
             if config_file.is_file():
                 return cls(cls._load(config_file), config_file)
@@ -58,6 +62,29 @@ class Config:
                 if table is not None:
                     return cls(table, pyproject)
         return cls()
+
+    @staticmethod
+    def _search_path(start: Path) -> list[Path]:
+        """Returns the start directory and its parents up to and including the search boundary.
+
+        Args:
+            start: Resolved directory the search begins in.
+        """
+
+        boundary = Git(start).toplevel()
+        if boundary is None:
+            try:
+                home = Path.home().resolve()
+            except RuntimeError:
+                home = start
+            boundary = home if start.is_relative_to(home) else start
+        boundary = boundary.resolve()
+        directories = [start]
+        for parent in start.parents:
+            if not directories[-1].is_relative_to(boundary) or directories[-1] == boundary:
+                break
+            directories.append(parent)
+        return directories
 
     def merge(self, args: argparse.Namespace) -> dict[str, Any]:
         """Returns the ProjectTree options, taking each value from the arguments when given, else from the config, else the default.
@@ -100,14 +127,16 @@ class Config:
             path: File to parse.
 
         Raises:
-            ValueError: The file is not valid TOML.
+            ConfigError: The file cannot be read or is not valid TOML.
         """
 
         try:
             with path.open("rb") as file:
                 return tomllib.load(file)
         except tomllib.TOMLDecodeError as error:
-            raise ValueError(f"{path}: invalid TOML: {error}") from None
+            raise ConfigError(f"{path}: invalid TOML: {error}") from None
+        except OSError as error:
+            raise ConfigError(f"{path}: {error.strerror or error}") from None
 
     def _set(self, key: str, value: Any) -> None:
         """Checks the type of one option value and stores it on the matching attribute.
@@ -119,31 +148,31 @@ class Config:
             value: Parsed TOML value.
 
         Raises:
-            ValueError: The key is unknown or the value has the wrong type.
+            ConfigError: The key is unknown or the value has the wrong type.
         """
 
         if key == "path":
             if not isinstance(value, str):
-                raise ValueError(f"{self.source}: path must be a string")
+                raise ConfigError(f"{self.source}: path must be a string")
             if self.source is None:
                 self.path = Path(value)
                 return
             base = self.source.parent.resolve()
             path = (base / value).resolve()
             if not path.is_relative_to(base):
-                raise ValueError(f"{self.source}: path must stay inside {base}")
+                raise ConfigError(f"{self.source}: path must stay inside {base}", "use a path relative to the config file without ..")
             self.path = path
         elif key == "depth":
             if not isinstance(value, int) or isinstance(value, bool) or value < 1:
-                raise ValueError(f"{self.source}: depth must be an integer of at least 1")
+                raise ConfigError(f"{self.source}: depth must be an integer of at least 1")
             self.depth = value
         elif key in ("dirs-only", "fence", "ascii"):
             if not isinstance(value, bool):
-                raise ValueError(f"{self.source}: {key} must be true or false")
+                raise ConfigError(f"{self.source}: {key} must be true or false")
             setattr(self, {"dirs-only": "dirs_only", "ascii": "use_ascii"}.get(key, key), value)
         elif key == "exclude":
             if not isinstance(value, list) or not all(isinstance(pattern, str) for pattern in value):
-                raise ValueError(f"{self.source}: exclude must be a list of strings")
+                raise ConfigError(f"{self.source}: exclude must be a list of strings")
             self.exclude = list(value)
         else:
-            raise ValueError(f"{self.source}: unknown option '{key}'")
+            raise ConfigError(f"{self.source}: unknown option '{key}'")

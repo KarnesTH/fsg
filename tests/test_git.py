@@ -4,6 +4,7 @@ from pathlib import Path
 
 import pytest
 
+from fsg.errors import GitError
 from fsg.git import Git
 from tests.conftest import create_files, init_repository, requires_git
 
@@ -53,10 +54,10 @@ class TestExecutable:
         assert Git.executable() is None
 
     def test_run_reports_missing_git(self, tmp_path: Path, monkeypatch) -> None:
-        """Raises OSError when no git executable is found."""
+        """Raises GitError when no git executable is found."""
 
         monkeypatch.setenv("PATH", "")
-        with pytest.raises(OSError, match="not installed"):
+        with pytest.raises(GitError, match="not installed"):
             Git(tmp_path).run("status")
 
     def test_is_repository_without_git(self, tmp_path: Path, monkeypatch) -> None:
@@ -135,10 +136,19 @@ class TestLsFiles:
         create_files(tmp_path, ["Größe.md"])
         assert Git(tmp_path).ls_files() == ["Größe.md"]
 
-    def test_raises_outside_repository(self, tmp_path: Path) -> None:
-        """Raises OSError carrying the git message, in the language of the user's locale, when the command fails."""
+    def test_leaves_out_deleted_files(self, tmp_path: Path) -> None:
+        """Omits tracked files that were deleted from the working tree but not yet staged."""
 
-        with pytest.raises(OSError, match=r"^git ls-files failed: \S"):
+        init_repository(tmp_path)
+        create_files(tmp_path, ["keep.py", "gone.py"])
+        subprocess.run(["git", "add", "."], cwd=tmp_path, check=True)
+        (tmp_path / "gone.py").unlink()
+        assert Git(tmp_path).ls_files() == ["keep.py"]
+
+    def test_raises_outside_repository(self, tmp_path: Path) -> None:
+        """Raises GitError carrying the git message, in the language of the user's locale, when the command fails."""
+
+        with pytest.raises(GitError, match=r"^git ls-files failed: \S"):
             Git(tmp_path).ls_files()
 
 
@@ -153,7 +163,7 @@ class TestHooksDir:
         assert Git(tmp_path).hooks_dir() == tmp_path / ".git" / "hooks"
 
     def test_raises_outside_repository(self, tmp_path: Path) -> None:
-        """Raises OSError when the directory is not inside a repository."""
+        """Raises GitError when the directory is not inside a repository."""
 
-        with pytest.raises(OSError, match="git rev-parse failed"):
+        with pytest.raises(GitError, match="git rev-parse failed"):
             Git(tmp_path).hooks_dir()

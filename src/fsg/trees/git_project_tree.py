@@ -9,7 +9,7 @@ class GitProjectTree(ProjectTree):
         """Returns the paths listed by git ls-files, split into their path parts.
 
         Raises:
-            OSError: git cannot run or the command fails.
+            GitError: git cannot run or the command fails.
         """
 
         return [entry.split("/") for entry in Git(self.root).ls_files()]

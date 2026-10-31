@@ -1,10 +1,11 @@
 import io
-from importlib.metadata import version
 from pathlib import Path
 
 import pytest
 
+import fsg
 from fsg.cli import main, parse_args
+from fsg.errors import GitError
 from fsg.readme_section import END_MARKER, START_MARKER
 from tests.conftest import create_files, init_repository, requires_git
 
@@ -115,15 +116,18 @@ class TestMain:
     def test_reports_missing_directory(self, tmp_path: Path, capsys) -> None:
         """Writes an error to stderr and returns 1 when the path does not exist."""
 
-        assert main([str(tmp_path / "missing")]) == 1
-        assert capsys.readouterr().err.startswith("fsg: ")
+        missing = tmp_path / "missing"
+        assert main([str(missing)]) == 2
+        assert capsys.readouterr().err == (
+            f"✖ {missing}: not a directory\n  hint: pass an existing directory or set path in the config\n"
+        )
 
     def test_reports_file_instead_of_directory(self, tmp_path: Path, capsys) -> None:
         """Writes an error to stderr and returns 1 when the path is a file."""
 
         create_files(tmp_path, ["main.py"])
-        assert main([str(tmp_path / "main.py")]) == 1
-        assert capsys.readouterr().err.startswith("fsg: ")
+        assert main([str(tmp_path / "main.py")]) == 2
+        assert capsys.readouterr().err.startswith(f"✖ {tmp_path / 'main.py'}: not a directory\n")
 
     def test_prints_help(self, capsys) -> None:
         """Exits after writing the usage text to stdout."""
@@ -148,7 +152,7 @@ class TestMain:
         with pytest.raises(SystemExit) as exit_info:
             main([option])
         assert exit_info.value.code == 0
-        assert capsys.readouterr().out.strip() == f"fsg {version('fsg')}"
+        assert capsys.readouterr().out.strip() == f"fsg {fsg.__version__}"
     def test_prints_ascii_tree(self, tmp_path: Path, capsys) -> None:
         """Writes the tree with ASCII connectors when --ascii is given."""
 
@@ -209,7 +213,7 @@ class TestSync:
         text = readme.read_text(encoding="utf-8")
         assert "── main.py" in text
         assert text.startswith(f"# Title\n{START_MARKER}\n```plaintext\n")
-        assert capsys.readouterr().out == f"{readme}: tree updated\n"
+        assert capsys.readouterr().out == f"✔ {readme}: tree updated\n"
 
     def test_update_reports_current_tree(self, tmp_path: Path, capsys) -> None:
         """Reports that nothing changed when the section is already current."""
@@ -220,7 +224,7 @@ class TestSync:
         main(["--update", str(readme), str(tmp_path)])
         capsys.readouterr()
         assert main(["--update", str(readme), str(tmp_path)]) == 0
-        assert capsys.readouterr().out == f"{readme}: tree already up to date\n"
+        assert capsys.readouterr().out == f"• {readme}: tree already up to date\n"
 
     def test_check_reports_current_tree(self, tmp_path: Path, capsys) -> None:
         """Reports on stdout that the tree is up to date."""
@@ -231,7 +235,7 @@ class TestSync:
         main(["--update", str(readme), str(tmp_path)])
         capsys.readouterr()
         assert main(["--check", str(readme), str(tmp_path)]) == 0
-        assert capsys.readouterr().out == f"{readme}: tree is up to date\n"
+        assert capsys.readouterr().out == f"✔ {readme}: tree is up to date\n"
 
     def test_check_passes_after_update(self, tmp_path: Path) -> None:
         """Returns 0 when the section matches the tree rendered with the same options."""
@@ -252,7 +256,7 @@ class TestSync:
         create_files(tmp_path, ["new.py"])
         capsys.readouterr()
         assert main(["--check", str(readme), str(tmp_path)]) == 1
-        assert capsys.readouterr().err == f"{readme}: tree is out of date, run fsg --update {readme}\n"
+        assert capsys.readouterr().err == f"✖ {readme}: tree is out of date\n  hint: run fsg --update {readme}\n"
 
     def test_check_does_not_modify_file(self, tmp_path: Path) -> None:
         """Leaves the file unchanged when the section is outdated."""
@@ -270,7 +274,10 @@ class TestSync:
         readme = tmp_path / "README.md"
         readme.write_text("# Title\n", encoding="utf-8")
         assert main([option, str(readme), str(tmp_path)]) == 2
-        assert capsys.readouterr().err == f"fsg: {readme}: missing {START_MARKER} marker\n"
+        assert capsys.readouterr().err == (
+            f"✖ {readme}: missing {START_MARKER} marker\n"
+            f"  hint: add {START_MARKER} and {END_MARKER} on their own lines outside a code block\n"
+        )
 
     @pytest.mark.parametrize("option", ["--update", "--check"])
     def test_reports_missing_file(self, option: str, tmp_path: Path, capsys) -> None:
@@ -278,7 +285,7 @@ class TestSync:
 
         missing = tmp_path / "MISSING.md"
         assert main([option, str(missing), str(tmp_path)]) == 2
-        assert capsys.readouterr().err == f"fsg: {missing}: file not found\n"
+        assert capsys.readouterr().err == f"✖ {missing}: file not found\n"
 
     def test_reports_non_utf8_file(self, tmp_path: Path, capsys) -> None:
         """Returns 2 and reports a file that is not UTF-8 encoded."""
@@ -286,7 +293,7 @@ class TestSync:
         readme = tmp_path / "README.md"
         readme.write_bytes(b"\xff\xfe\x00")
         assert main(["--check", str(readme), str(tmp_path)]) == 2
-        assert capsys.readouterr().err == f"fsg: {readme}: not a UTF-8 text file\n"
+        assert capsys.readouterr().err == f"✖ {readme}: not a UTF-8 text file\n"
 
 
 class TestConfig:
@@ -373,14 +380,14 @@ class TestConfig:
 
         (tmp_path / ".fsg.toml").write_text("depth = 0\n", encoding="utf-8")
         assert main(["--check", str(self.readme(tmp_path)), str(tmp_path)]) == 2
-        assert capsys.readouterr().err.startswith("fsg: ")
+        assert capsys.readouterr().err.startswith("✖ ")
 
     def test_reports_missing_config_path(self, tmp_path: Path, capsys) -> None:
         """Returns 1 and names the configured path when it is not a directory."""
 
         (tmp_path / ".fsg.toml").write_text('path = "gone"\n', encoding="utf-8")
-        assert main(["--check", str(self.readme(tmp_path))]) == 1
-        assert capsys.readouterr().err == f"fsg: {tmp_path / 'gone'}: not a directory\n"
+        assert main(["--check", str(self.readme(tmp_path))]) == 2
+        assert capsys.readouterr().err.startswith(f"✖ {(tmp_path / 'gone').resolve()}: not a directory\n")
 
 
 def write_markers(path: Path) -> Path:
@@ -407,7 +414,7 @@ class TestSetupHook:
         monkeypatch.chdir(tmp_path)
         assert main(["--setup-hook", "README.md"]) == 0
         assert "fsg --update README.md" in (tmp_path / ".git" / "hooks" / "pre-commit").read_text(encoding="utf-8")
-        assert capsys.readouterr().out == ".git/hooks/pre-commit: fsg hook added\n"
+        assert capsys.readouterr().out == "✔ .git/hooks/pre-commit: fsg hook added\n"
 
     def test_extends_pre_commit_config(self, tmp_path: Path, capsys, monkeypatch) -> None:
         """Adds the entry to an existing .pre-commit-config.yaml and reminds to install pre-commit."""
@@ -429,7 +436,7 @@ class TestSetupHook:
         main(["--setup-hook", "README.md"])
         capsys.readouterr()
         assert main(["--setup-hook", "README.md"]) == 0
-        assert capsys.readouterr().out == ".git/hooks/pre-commit: fsg hook already present\n"
+        assert capsys.readouterr().out == "• .git/hooks/pre-commit: fsg hook already present\n"
 
     def test_uses_path_relative_to_repository(self, tmp_path: Path, monkeypatch) -> None:
         """Writes the target relative to the repository root when run from a subdirectory."""
@@ -445,7 +452,7 @@ class TestSetupHook:
 
         monkeypatch.chdir(tmp_path)
         assert main(["--setup-hook", "README.md"]) == 2
-        assert capsys.readouterr().err == "fsg: not inside a git repository\n"
+        assert capsys.readouterr().err == "✖ not inside a git repository\n  hint: run fsg --setup-hook inside your project\n"
 
     def test_rejects_missing_target(self, tmp_path: Path, capsys, monkeypatch) -> None:
         """Returns 2 and writes no hook when the target file does not exist."""
@@ -453,7 +460,7 @@ class TestSetupHook:
         init_repository(tmp_path)
         monkeypatch.chdir(tmp_path)
         assert main(["--setup-hook", "READMEE.md"]) == 2
-        assert capsys.readouterr().err == "fsg: READMEE.md: file not found\n"
+        assert capsys.readouterr().err == "✖ READMEE.md: file not found\n"
         assert not (tmp_path / ".git" / "hooks" / "pre-commit").exists()
 
     def test_rejects_target_without_markers(self, tmp_path: Path, capsys, monkeypatch) -> None:
@@ -490,7 +497,21 @@ class TestGitFailure:
 
         init_repository(tmp_path)
         readme = write_markers(tmp_path / "README.md")
-        monkeypatch.setattr("fsg.git.Git.ls_files", lambda self: (_ for _ in ()).throw(OSError("git ls-files failed: boom")))
+        monkeypatch.setattr("fsg.git.Git.ls_files", lambda self: (_ for _ in ()).throw(GitError("git ls-files failed: boom")))
         assert main(["--update", str(readme), str(tmp_path)]) == 2
-        assert capsys.readouterr().err == "fsg: git ls-files failed: boom\n"
+        assert capsys.readouterr().err == "✖ git ls-files failed: boom\n"
         assert readme.read_text(encoding="utf-8") == f"{START_MARKER}\n{END_MARKER}\n"
+
+
+class TestAsciiOutput:
+    """Covers the status symbols with --ascii."""
+
+    def test_uses_bracketed_words(self, tmp_path: Path, capsys) -> None:
+        """Replaces the Unicode symbols with bracketed words."""
+
+        create_files(tmp_path, ["main.py"])
+        readme = write_markers(tmp_path / "README.md")
+        assert main(["--ascii", "--update", str(readme), str(tmp_path)]) == 0
+        assert capsys.readouterr().out == f"[ok] {readme}: tree updated\n"
+        assert main(["--ascii", "--check", str(tmp_path / "missing.md"), str(tmp_path)]) == 2
+        assert capsys.readouterr().err == f"[error] {tmp_path / 'missing.md'}: file not found\n"

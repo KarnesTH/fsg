@@ -4,6 +4,8 @@ from pathlib import Path
 import pytest
 
 from fsg.config import Config
+from fsg.errors import ConfigError
+from tests.conftest import init_repository, requires_git
 
 
 def namespace(**overrides: object) -> argparse.Namespace:
@@ -38,7 +40,7 @@ class TestInit:
     def test_rejects_path_outside_config_directory(self, tmp_path: Path, path: str) -> None:
         """Raises ValueError when the path leaves the directory of the config file."""
 
-        with pytest.raises(ValueError, match="must stay inside"):
+        with pytest.raises(ConfigError, match="must stay inside"):
             Config({"path": path}, tmp_path / "project" / ".fsg.toml")
 
     def test_accepts_config_directory_itself(self, tmp_path: Path) -> None:
@@ -54,7 +56,7 @@ class TestInit:
     def test_rejects_non_string_path(self) -> None:
         """Raises ValueError when path is not a string."""
 
-        with pytest.raises(ValueError, match="path"):
+        with pytest.raises(ConfigError, match="path"):
             Config({"path": 1})
 
     def test_leaves_unset_options_empty(self) -> None:
@@ -70,33 +72,33 @@ class TestInit:
     def test_rejects_invalid_depth(self, depth: object) -> None:
         """Raises ValueError for a depth that is not an integer of at least 1."""
 
-        with pytest.raises(ValueError, match="depth"):
+        with pytest.raises(ConfigError, match="depth"):
             Config({"depth": depth})
 
     @pytest.mark.parametrize("key", ["dirs-only", "fence", "ascii"])
     def test_rejects_non_boolean_switch(self, key: str) -> None:
         """Raises ValueError when a switch is not true or false."""
 
-        with pytest.raises(ValueError, match=key):
+        with pytest.raises(ConfigError, match=key):
             Config({key: "yes"})
 
     @pytest.mark.parametrize("exclude", ["*.log", [1, 2], ["*.log", None]])
     def test_rejects_invalid_exclude(self, exclude: object) -> None:
         """Raises ValueError when exclude is not a list of strings."""
 
-        with pytest.raises(ValueError, match="exclude"):
+        with pytest.raises(ConfigError, match="exclude"):
             Config({"exclude": exclude})
 
     def test_rejects_unknown_option(self) -> None:
         """Raises ValueError naming the unknown key."""
 
-        with pytest.raises(ValueError, match="unknown option 'dirs_only'"):
+        with pytest.raises(ConfigError, match="unknown option 'dirs_only'"):
             Config({"dirs_only": True})
 
     def test_names_source_in_errors(self, tmp_path: Path) -> None:
         """Mentions the config file in the error message."""
 
-        with pytest.raises(ValueError, match="pyproject.toml"):
+        with pytest.raises(ConfigError, match="pyproject.toml"):
             Config({"depth": 0}, tmp_path / "pyproject.toml")
 
 
@@ -127,6 +129,7 @@ class TestFind:
     def test_skips_pyproject_without_table(self, tmp_path: Path) -> None:
         """Continues with the parent directory when pyproject.toml has no [tool.fsg] table."""
 
+        init_repository(tmp_path)
         (tmp_path / ".fsg.toml").write_text("depth = 4\n", encoding="utf-8")
         nested = tmp_path / "pkg"
         nested.mkdir()
@@ -134,8 +137,9 @@ class TestFind:
         assert Config.find(nested).depth == 4
 
     def test_searches_parent_directories(self, tmp_path: Path) -> None:
-        """Finds the config of the project root when rendering a subdirectory."""
+        """Finds the config of the repository root when rendering a subdirectory."""
 
+        init_repository(tmp_path)
         (tmp_path / ".fsg.toml").write_text("fence = false\n", encoding="utf-8")
         nested = tmp_path / "src" / "pkg"
         nested.mkdir(parents=True)
@@ -150,7 +154,7 @@ class TestFind:
         """Raises ValueError naming the file when it is not valid TOML."""
 
         (tmp_path / ".fsg.toml").write_text("depth = \n", encoding="utf-8")
-        with pytest.raises(ValueError, match="invalid TOML"):
+        with pytest.raises(ConfigError, match="invalid TOML"):
             Config.find(tmp_path)
 
 
@@ -184,3 +188,40 @@ class TestMerge:
 
         merged = Config({"exclude": ["*.log"]}).merge(namespace(exclude=["tests"]))
         assert merged["exclude"] == ["*.log", "tests"]
+
+class TestSearchBoundary:
+    """Covers where the search for a config file stops."""
+
+    @requires_git
+    def test_stops_at_repository_root(self, tmp_path: Path) -> None:
+        """Ignores a config file above the root of the git working tree."""
+
+        (tmp_path / ".fsg.toml").write_text("depth = 4\n", encoding="utf-8")
+        repository = tmp_path / "project"
+        repository.mkdir()
+        init_repository(repository)
+        assert Config.find(repository).source is None
+
+    def test_stops_at_home_directory(self, tmp_path: Path, monkeypatch) -> None:
+        """Ignores a config file above the home directory outside a repository."""
+
+        (tmp_path / ".fsg.toml").write_text("depth = 4\n", encoding="utf-8")
+        home = tmp_path / "home"
+        nested = home / "notes" / "docs"
+        nested.mkdir(parents=True)
+        monkeypatch.setenv("HOME", str(home))
+        monkeypatch.setenv("USERPROFILE", str(home))
+        (home / ".fsg.toml").write_text("depth = 2\n", encoding="utf-8")
+        assert Config.find(nested).depth == 2
+        (home / ".fsg.toml").unlink()
+        assert Config.find(nested).source is None
+
+    def test_searches_only_start_outside_home(self, tmp_path: Path, monkeypatch) -> None:
+        """Searches nothing but the start directory when it lies outside the home directory and any repository."""
+
+        (tmp_path / ".fsg.toml").write_text("depth = 4\n", encoding="utf-8")
+        nested = tmp_path / "data"
+        nested.mkdir()
+        monkeypatch.setenv("HOME", str(tmp_path / "elsewhere"))
+        monkeypatch.setenv("USERPROFILE", str(tmp_path / "elsewhere"))
+        assert Config.find(nested).source is None

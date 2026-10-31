@@ -1,6 +1,6 @@
 [project]
 name = "fsg"
-version = "0.1.1"
+version = "0.2.0"
 description = "Generates clean directory trees that respect .gitignore and keep your docs up to date."
 readme = "README.md"
 license = "MIT"
@@ -36,6 +36,7 @@ fsg = "fsg.cli:main"
 [dependency-groups]
 dev = [
     "pytest>=9.1.1",
+    "ruff>=0.17.3",
 ]
 
 [build-system]

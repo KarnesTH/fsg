@@ -5,6 +5,8 @@ import subprocess
 from functools import cache
 from pathlib import Path
 
+from fsg.errors import GitError
+
 
 class Git:
     """Runs git commands in one directory with the git executable found on PATH."""
@@ -47,27 +49,30 @@ class Git:
             *args: Arguments passed to git.
 
         Raises:
-            OSError: git is not installed or the directory does not exist.
+            GitError: git is not installed or cannot be started in the directory.
         """
 
         executable = self.executable()
         if executable is None:
-            raise OSError("git is not installed or not on PATH")
-        return subprocess.run(
-            [executable, *args],
-            cwd=self.directory,
-            capture_output=True,
-            text=True,
-            encoding="utf-8",
-            check=False,
-        )
+            raise GitError("git is not installed or not on PATH", "install git or add it to PATH")
+        try:
+            return subprocess.run(
+                [executable, *args],
+                cwd=self.directory,
+                capture_output=True,
+                text=True,
+                encoding="utf-8",
+                check=False,
+            )
+        except OSError as error:
+            raise GitError(f"git cannot run in {self.directory}: {error.strerror or error}") from None
 
     def is_repository(self) -> bool:
         """Returns whether the directory lies inside a git working tree, False when git cannot run there."""
 
         try:
             result = self.run("rev-parse", "--is-inside-work-tree")
-        except OSError:
+        except GitError:
             return False
         return result.returncode == 0 and result.stdout.strip() == "true"
 
@@ -76,7 +81,7 @@ class Git:
 
         try:
             result = self.run("rev-parse", "--show-toplevel")
-        except OSError:
+        except GitError:
             return None
         if result.returncode != 0:
             return None
@@ -85,18 +90,21 @@ class Git:
     def ls_files(self) -> list[str]:
         """Returns the tracked and untracked but not ignored paths relative to the directory, using forward slashes.
 
+        Tracked files deleted from the working tree are left out.
+
         Raises:
-            OSError: git cannot run or the command fails.
+            GitError: git cannot run or the command fails.
         """
 
-        result = self._checked("ls-files", "--cached", "--others", "--exclude-standard", "-z")
-        return [entry for entry in result.stdout.split("\0") if entry]
+        listed = self._checked("ls-files", "--cached", "--others", "--exclude-standard", "-z").stdout
+        deleted = set(self._checked("ls-files", "--deleted", "-z").stdout.split("\0"))
+        return [entry for entry in listed.split("\0") if entry and entry not in deleted]
 
     def hooks_dir(self) -> Path:
-        """Returns the absolute hooks directory of the repository, honouring core.hooksPath.
+        """Returns the absolute hooks directory of the repository, honoring core.hooksPath.
 
         Raises:
-            OSError: git cannot run or the command fails.
+            GitError: git cannot run or the command fails.
         """
 
         hooks = Path(self._checked("rev-parse", "--git-path", "hooks").stdout.strip())
@@ -109,11 +117,11 @@ class Git:
             *args: Arguments passed to git.
 
         Raises:
-            OSError: git cannot run or the command fails.
+            GitError: git cannot run or the command fails.
         """
 
         result = self.run(*args)
         if result.returncode != 0:
             message = result.stderr.strip() or f"exit status {result.returncode}"
-            raise OSError(f"git {args[0]} failed: {message}")
+            raise GitError(f"git {args[0]} failed: {message}")
         return result

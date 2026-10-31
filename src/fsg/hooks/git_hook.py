@@ -15,7 +15,7 @@ class GitHook(Hook):
         """Returns the pre-commit script inside the hooks directory git reports, honouring core.hooksPath.
 
         Raises:
-            OSError: git cannot run or the command fails.
+            GitError: git cannot run or the command fails.
         """
 
         return Git(self.repository).hooks_dir() / "pre-commit"
@@ -23,12 +23,12 @@ class GitHook(Hook):
     def install(self) -> bool:
         """Creates the executable script or adds the fsg step to the existing one.
 
-        In an existing script the step goes before a final exit line, otherwise at the end; line endings become \\n.
+        In an existing script the step goes before a final exit or exec line, otherwise at the end; line endings become \\n.
         Returns False without writing when the script already contains the fsg step.
 
         Raises:
-            ValueError: The existing script is not valid UTF-8.
-            OSError: git cannot run, or the script cannot be read or written.
+            GitError: git cannot run or the command fails.
+            FileError: The script cannot be read or written, or is not valid UTF-8.
         """
 
         path = self.location()
@@ -42,7 +42,7 @@ class GitHook(Hook):
             return False
         position = len(lines)
         content = [index for index, line in enumerate(lines) if line.strip() and not line.lstrip().startswith("#")]
-        if content and lines[content[-1]].split()[0] == "exit":
+        if content and lines[content[-1]].split()[0] in ("exit", "exec"):
             position = content[-1]
         if lines and not lines[-1].endswith("\n"):
             lines[-1] += "\n"

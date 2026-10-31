@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from abc import ABC, abstractmethod
 from collections.abc import Iterable, Iterator
 from fnmatch import fnmatchcase
 from pathlib import Path
@@ -9,7 +10,7 @@ from fsg.constants import ASCII_GLYPHS, IGNORED, UNICODE_GLYPHS
 from fsg.git import Git
 
 
-class ProjectTree:
+class ProjectTree(ABC):
     """Collects the relevant paths of a project directory and renders them as a tree."""
 
     def __init__(
@@ -56,10 +57,9 @@ class ProjectTree:
             return GitProjectTree(root, **options)
         return PlainProjectTree(root, **options)
 
+    @abstractmethod
     def collect(self) -> list[list[str]]:
         """Returns the relative paths to render, as lists of path parts."""
-
-        raise NotImplementedError
 
     def render(self) -> str:
         """Returns the tree as one string, wrapped in a Markdown code fence unless fence is disabled."""

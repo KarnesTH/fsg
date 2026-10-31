@@ -3,6 +3,7 @@ from pathlib import Path
 
 import pytest
 
+from fsg.errors import GitError
 from fsg.trees import GitProjectTree, PlainProjectTree
 from tests.conftest import create_files, init_repository, requires_git
 
@@ -49,7 +50,7 @@ class TestCollect:
         """Raises OSError with the git message instead of returning an empty result when git fails."""
 
         create_files(tmp_path, ["__main__.py"])
-        with pytest.raises(OSError, match="git ls-files failed"):
+        with pytest.raises(GitError, match="git ls-files failed"):
             GitProjectTree(tmp_path).collect()
 
     def test_matches_plain_output_for_a_clean_project(self, tmp_path: Path) -> None:

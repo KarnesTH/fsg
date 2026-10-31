@@ -2,6 +2,7 @@ from pathlib import Path
 
 import pytest
 
+from fsg.errors import FileError, MarkerError
 from fsg.readme_section import END_MARKER, START_MARKER, ReadmeSection
 
 
@@ -43,41 +44,41 @@ class TestInit:
         """Raises ValueError when the start marker is missing."""
 
         readme = write_readme(tmp_path, f"# Title\n{END_MARKER}\n")
-        with pytest.raises(ValueError, match="missing"):
+        with pytest.raises(MarkerError, match="missing"):
             ReadmeSection(readme)
 
     def test_rejects_missing_end_marker(self, tmp_path: Path) -> None:
         """Raises ValueError when the end marker is missing."""
 
         readme = write_readme(tmp_path, f"# Title\n{START_MARKER}\n")
-        with pytest.raises(ValueError, match="missing"):
+        with pytest.raises(MarkerError, match="missing"):
             ReadmeSection(readme)
 
     def test_rejects_end_marker_before_start_marker(self, tmp_path: Path) -> None:
         """Raises ValueError when the end marker only appears before the start marker."""
 
         readme = write_readme(tmp_path, f"{END_MARKER}\n{START_MARKER}\n")
-        with pytest.raises(ValueError, match="missing"):
+        with pytest.raises(MarkerError, match="missing"):
             ReadmeSection(readme)
 
     def test_rejects_missing_file(self, tmp_path: Path) -> None:
         """Raises ValueError when the file does not exist."""
 
-        with pytest.raises(ValueError, match="file not found"):
+        with pytest.raises(FileError, match="file not found"):
             ReadmeSection(tmp_path / "README.md")
 
     def test_rejects_non_utf8_file(self, tmp_path: Path) -> None:
         """Raises ValueError when the file is not valid UTF-8."""
 
         (tmp_path / "README.md").write_bytes(b"\xff\xfe\x00")
-        with pytest.raises(ValueError, match="UTF-8"):
+        with pytest.raises(FileError, match="UTF-8"):
             ReadmeSection(tmp_path / "README.md")
 
     def test_names_missing_end_marker(self, tmp_path: Path) -> None:
         """Reports the end marker as missing when only the start marker exists."""
 
         readme = write_readme(tmp_path, f"{START_MARKER}\ntree\n")
-        with pytest.raises(ValueError, match="fsg:end"):
+        with pytest.raises(MarkerError, match="fsg:end"):
             ReadmeSection(readme)
 
     def test_ignores_end_marker_inside_later_code_fence(self, tmp_path: Path) -> None:
@@ -85,7 +86,7 @@ class TestInit:
 
         text = f"{START_MARKER}\n\n## Keep\ntext\n\n```markdown\n{START_MARKER}\n{END_MARKER}\n```\n"
         readme = write_readme(tmp_path, text)
-        with pytest.raises(ValueError, match="fsg:end"):
+        with pytest.raises(MarkerError, match="fsg:end"):
             ReadmeSection(readme)
         assert read_raw(readme) == text
 
@@ -119,7 +120,7 @@ class TestInit:
         """Raises ValueError when the only markers stand inside a code fence."""
 
         readme = write_readme(tmp_path, f"```\n{START_MARKER}\n{END_MARKER}\n```\n")
-        with pytest.raises(ValueError, match="missing"):
+        with pytest.raises(MarkerError, match="missing"):
             ReadmeSection(readme)
 
     def test_skips_inline_start_marker(self, tmp_path: Path) -> None:
@@ -206,3 +207,39 @@ class TestUpdate:
         readme = write_readme(tmp_path, text)
         ReadmeSection(readme).update("x")
         assert read_raw(readme) == f"{START_MARKER}\nx\n{END_MARKER}\n{START_MARKER}\nb\n{END_MARKER}\n"
+
+class TestFences:
+    """Covers fenced and indented code blocks around the markers."""
+
+    def test_longer_fence_needs_longer_close(self, tmp_path: Path) -> None:
+        """Keeps a four-backtick block open across an inner three-backtick line."""
+
+        text = f"````\n```\n{START_MARKER}\n{END_MARKER}\n```\n````\n{START_MARKER}\nreal\n{END_MARKER}\n"
+        assert ReadmeSection(write_readme(tmp_path, text)).content() == "\nreal\n"
+
+    def test_backtick_fence_ignores_tilde_close(self, tmp_path: Path) -> None:
+        """Keeps a backtick block open across a tilde line."""
+
+        text = f"```\n~~~\n{START_MARKER}\n{END_MARKER}\n```\n{START_MARKER}\nreal\n{END_MARKER}\n"
+        assert ReadmeSection(write_readme(tmp_path, text)).content() == "\nreal\n"
+
+    def test_fence_close_must_be_bare(self, tmp_path: Path) -> None:
+        """Does not close a block with a line that carries an info string."""
+
+        text = f"```\n```python\n{START_MARKER}\n{END_MARKER}\n```\n{START_MARKER}\nreal\n{END_MARKER}\n"
+        assert ReadmeSection(write_readme(tmp_path, text)).content() == "\nreal\n"
+
+    @pytest.mark.parametrize("prefix", ["    ", "\t"])
+    def test_ignores_indented_code_block_marker(self, tmp_path: Path, prefix: str) -> None:
+        """Skips markers indented by four spaces or a tab, which form an indented code block."""
+
+        text = f"{prefix}{START_MARKER}\n{prefix}{END_MARKER}\n\n{START_MARKER}\nreal\n{END_MARKER}\n"
+        assert ReadmeSection(write_readme(tmp_path, text)).content() == "\nreal\n"
+
+    def test_hint_for_missing_end_marker(self, tmp_path: Path) -> None:
+        """Explains where the end marker belongs."""
+
+        readme = write_readme(tmp_path, f"{START_MARKER}\n")
+        with pytest.raises(MarkerError) as error:
+            ReadmeSection(readme)
+        assert error.value.hint == f"put {END_MARKER} on its own line after {START_MARKER}"
