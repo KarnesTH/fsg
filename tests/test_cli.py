@@ -6,7 +6,7 @@ import pytest
 
 from fsg.cli import main, parse_args
 from fsg.readme_section import END_MARKER, START_MARKER
-from tests.conftest import create_files
+from tests.conftest import create_files, init_repository, requires_git
 
 
 class TestParseArgs:
@@ -17,10 +17,10 @@ class TestParseArgs:
 
         assert parse_args(["src"]).path == Path("src")
 
-    def test_defaults_to_current_directory(self) -> None:
-        """Returns the current directory when no path is given."""
+    def test_leaves_path_unset(self) -> None:
+        """Returns None when no path is given."""
 
-        assert parse_args([]).path == Path(".")
+        assert parse_args([]).path is None
 
     def test_rejects_further_arguments(self) -> None:
         """Exits when more than one path is given."""
@@ -28,10 +28,10 @@ class TestParseArgs:
         with pytest.raises(SystemExit):
             parse_args(["src", "tests"])
 
-    def test_ascii_defaults_to_false(self) -> None:
-        """Returns False for use_ascii when the option is not given."""
+    def test_ascii_defaults_to_none(self) -> None:
+        """Returns None for use_ascii when the option is not given."""
 
-        assert parse_args([]).use_ascii is False
+        assert parse_args([]).use_ascii is None
 
     def test_reads_ascii_option(self) -> None:
         """Returns True for use_ascii when --ascii is given."""
@@ -39,16 +39,28 @@ class TestParseArgs:
         assert parse_args(["--ascii"]).use_ascii is True
 
     def test_render_options_default(self) -> None:
-        """Returns no depth, all entries, no exclusions and an enabled fence when no option is given."""
+        """Returns None for every option that can come from the config and no exclusions when no option is given."""
 
         args = parse_args([])
-        assert (args.depth, args.dirs_only, args.exclude, args.fence) == (None, False, [], True)
+        assert (args.depth, args.dirs_only, args.exclude, args.fence) == (None, None, [], None)
 
     def test_reads_render_options(self) -> None:
         """Reads depth, dirs-only, repeated excludes and no-fence."""
 
         args = parse_args(["-d", "2", "--dirs-only", "-e", "*.log", "--exclude", "tests", "--no-fence"])
         assert (args.depth, args.dirs_only, args.exclude, args.fence) == (2, True, ["*.log", "tests"], False)
+
+    def test_reads_negated_options(self) -> None:
+        """Returns False for options switched off with their --no- form."""
+
+        args = parse_args(["--no-dirs-only", "--no-ascii", "--fence"])
+        assert (args.dirs_only, args.use_ascii, args.fence) == (False, False, True)
+
+    def test_rejects_setup_hook_together_with_update(self) -> None:
+        """Exits when --setup-hook and --update are given at the same time."""
+
+        with pytest.raises(SystemExit):
+            parse_args(["--setup-hook", "README.md", "--update", "README.md"])
 
     @pytest.mark.parametrize("depth", ["0", "-1"])
     def test_rejects_depth_below_one(self, depth: str, capsys) -> None:
@@ -104,14 +116,14 @@ class TestMain:
         """Writes an error to stderr and returns 1 when the path does not exist."""
 
         assert main([str(tmp_path / "missing")]) == 1
-        assert "not a directory" in capsys.readouterr().err
+        assert capsys.readouterr().err.startswith("fsg: ")
 
     def test_reports_file_instead_of_directory(self, tmp_path: Path, capsys) -> None:
         """Writes an error to stderr and returns 1 when the path is a file."""
 
         create_files(tmp_path, ["main.py"])
         assert main([str(tmp_path / "main.py")]) == 1
-        assert "not a directory" in capsys.readouterr().err
+        assert capsys.readouterr().err.startswith("fsg: ")
 
     def test_prints_help(self, capsys) -> None:
         """Exits after writing the usage text to stdout."""
@@ -188,7 +200,7 @@ class TestSync:
             parse_args(["--update", "README.md", "--check", "README.md"])
 
     def test_update_writes_tree_into_section(self, tmp_path: Path, capsys) -> None:
-        """Writes the rendered tree between the markers and reports the change on stderr."""
+        """Writes the rendered tree between the markers and reports the change on stdout."""
 
         create_files(tmp_path, ["main.py"])
         readme = tmp_path / "README.md"
@@ -197,12 +209,10 @@ class TestSync:
         text = readme.read_text(encoding="utf-8")
         assert "── main.py" in text
         assert text.startswith(f"# Title\n{START_MARKER}\n```plaintext\n")
-        captured = capsys.readouterr()
-        assert captured.out == ""
-        assert "updated" in captured.err
+        assert capsys.readouterr().out == f"{readme}: tree updated\n"
 
-    def test_update_is_silent_when_current(self, tmp_path: Path, capsys) -> None:
-        """Writes nothing to stderr when the section is already current."""
+    def test_update_reports_current_tree(self, tmp_path: Path, capsys) -> None:
+        """Reports that nothing changed when the section is already current."""
 
         create_files(tmp_path, ["main.py"])
         readme = tmp_path / "README.md"
@@ -210,7 +220,18 @@ class TestSync:
         main(["--update", str(readme), str(tmp_path)])
         capsys.readouterr()
         assert main(["--update", str(readme), str(tmp_path)]) == 0
-        assert capsys.readouterr().err == ""
+        assert capsys.readouterr().out == f"{readme}: tree already up to date\n"
+
+    def test_check_reports_current_tree(self, tmp_path: Path, capsys) -> None:
+        """Reports on stdout that the tree is up to date."""
+
+        create_files(tmp_path, ["main.py"])
+        readme = tmp_path / "README.md"
+        readme.write_text(f"{START_MARKER}\n{END_MARKER}\n", encoding="utf-8")
+        main(["--update", str(readme), str(tmp_path)])
+        capsys.readouterr()
+        assert main(["--check", str(readme), str(tmp_path)]) == 0
+        assert capsys.readouterr().out == f"{readme}: tree is up to date\n"
 
     def test_check_passes_after_update(self, tmp_path: Path) -> None:
         """Returns 0 when the section matches the tree rendered with the same options."""
@@ -231,7 +252,7 @@ class TestSync:
         create_files(tmp_path, ["new.py"])
         capsys.readouterr()
         assert main(["--check", str(readme), str(tmp_path)]) == 1
-        assert "out of date" in capsys.readouterr().err
+        assert capsys.readouterr().err == f"{readme}: tree is out of date, run fsg --update {readme}\n"
 
     def test_check_does_not_modify_file(self, tmp_path: Path) -> None:
         """Leaves the file unchanged when the section is outdated."""
@@ -249,11 +270,177 @@ class TestSync:
         readme = tmp_path / "README.md"
         readme.write_text("# Title\n", encoding="utf-8")
         assert main([option, str(readme), str(tmp_path)]) == 2
-        assert "missing" in capsys.readouterr().err
+        assert capsys.readouterr().err == (
+            f"fsg: {readme}: missing {START_MARKER} / {END_MARKER} markers\n"
+        )
 
     @pytest.mark.parametrize("option", ["--update", "--check"])
     def test_reports_missing_file(self, option: str, tmp_path: Path, capsys) -> None:
         """Returns 2 and reports the error on stderr when the file does not exist."""
 
-        assert main([option, str(tmp_path / "MISSING.md"), str(tmp_path)]) == 2
-        assert "MISSING.md" in capsys.readouterr().err
+        missing = tmp_path / "MISSING.md"
+        assert main([option, str(missing), str(tmp_path)]) == 2
+        assert capsys.readouterr().err == f"fsg: {missing}: file not found\n"
+
+    def test_reports_non_utf8_file(self, tmp_path: Path, capsys) -> None:
+        """Returns 2 and reports a file that is not UTF-8 encoded."""
+
+        readme = tmp_path / "README.md"
+        readme.write_bytes(b"\xff\xfe\x00")
+        assert main(["--check", str(readme), str(tmp_path)]) == 2
+        assert capsys.readouterr().err == f"fsg: {readme}: not a UTF-8 text file\n"
+
+
+class TestConfig:
+    """Covers reading the path and options from a config file in update and check mode."""
+
+    @staticmethod
+    def readme(root: Path) -> Path:
+        """Creates a README.md with empty markers below the root and returns its path.
+
+        Args:
+            root: Directory the file is created in.
+        """
+
+        readme = root / "README.md"
+        readme.write_text(f"{START_MARKER}\n{END_MARKER}\n", encoding="utf-8")
+        return readme
+
+    def test_applies_config_on_update(self, tmp_path: Path) -> None:
+        """Renders the tree written by --update with the options from .fsg.toml."""
+
+        create_files(tmp_path, ["main.py", "debug.log", "src/app.py"])
+        (tmp_path / ".fsg.toml").write_text('exclude = ["*.log"]\nfence = false\ndepth = 1\n', encoding="utf-8")
+        readme = self.readme(tmp_path)
+        assert main(["--update", str(readme), str(tmp_path)]) == 0
+        text = readme.read_text(encoding="utf-8")
+        assert "```" not in text
+        assert "debug.log" not in text
+        assert "app.py" not in text
+
+    def test_reads_path_from_config(self, tmp_path: Path) -> None:
+        """Renders the configured path, resolved against the config file, when no path is given."""
+
+        create_files(tmp_path, ["main.py", "src/app.py"])
+        (tmp_path / ".fsg.toml").write_text('path = "src"\n', encoding="utf-8")
+        readme = self.readme(tmp_path)
+        assert main(["--update", str(readme)]) == 0
+        text = readme.read_text(encoding="utf-8")
+        assert "src/\n└── app.py" in text
+        assert "main.py" not in text
+
+    def test_checks_with_config_path(self, tmp_path: Path, monkeypatch) -> None:
+        """Finds the tree of the configured path up to date after an update from another directory."""
+
+        create_files(tmp_path, ["src/app.py"])
+        (tmp_path / "pyproject.toml").write_text('[tool.fsg]\npath = "src"\ndepth = 2\n', encoding="utf-8")
+        readme = self.readme(tmp_path)
+        main(["--update", str(readme)])
+        monkeypatch.chdir(tmp_path / "src")
+        assert main(["--check", str(readme)]) == 0
+
+    def test_argument_path_overrides_config_path(self, tmp_path: Path) -> None:
+        """Renders the path given on the command line instead of the configured one."""
+
+        create_files(tmp_path, ["src/app.py", "docs/guide.md"])
+        (tmp_path / ".fsg.toml").write_text('path = "src"\n', encoding="utf-8")
+        readme = self.readme(tmp_path)
+        main(["--update", str(readme), str(tmp_path / "docs")])
+        text = readme.read_text(encoding="utf-8")
+        assert "guide.md" in text
+        assert "app.py" not in text
+
+    def test_arguments_override_config(self, tmp_path: Path) -> None:
+        """Prefers options given on the command line over the config file."""
+
+        create_files(tmp_path, ["main.py"])
+        (tmp_path / ".fsg.toml").write_text("fence = false\n", encoding="utf-8")
+        readme = self.readme(tmp_path)
+        main(["--update", str(readme), "--fence", str(tmp_path)])
+        assert "```plaintext" in readme.read_text(encoding="utf-8")
+
+    def test_ignores_config_without_mode(self, tmp_path: Path, capsys, monkeypatch) -> None:
+        """Renders the current directory with the defaults when neither --update nor --check is given."""
+
+        create_files(tmp_path, ["main.py", "src/app.py"])
+        (tmp_path / ".fsg.toml").write_text('path = "src"\nfence = false\n', encoding="utf-8")
+        monkeypatch.chdir(tmp_path)
+        assert main([]) == 0
+        output = capsys.readouterr().out
+        assert output.startswith(f"```plaintext\n{tmp_path.name}/")
+        assert "main.py" in output
+
+    def test_reports_invalid_config(self, tmp_path: Path, capsys) -> None:
+        """Returns 2 and reports the problem when the config holds an invalid value."""
+
+        (tmp_path / ".fsg.toml").write_text("depth = 0\n", encoding="utf-8")
+        assert main(["--check", str(self.readme(tmp_path)), str(tmp_path)]) == 2
+        assert capsys.readouterr().err.startswith("fsg: ")
+
+    def test_reports_missing_config_path(self, tmp_path: Path, capsys) -> None:
+        """Returns 1 and names the configured path when it is not a directory."""
+
+        (tmp_path / ".fsg.toml").write_text('path = "gone"\n', encoding="utf-8")
+        assert main(["--check", str(self.readme(tmp_path))]) == 1
+        assert capsys.readouterr().err == f"fsg: {tmp_path / 'gone'}: not a directory\n"
+
+
+@requires_git
+class TestSetupHook:
+    """Covers adding the update step to the commit hooks."""
+
+    def test_installs_git_hook(self, tmp_path: Path, capsys, monkeypatch) -> None:
+        """Creates the native pre-commit hook and reports its location."""
+
+        init_repository(tmp_path)
+        monkeypatch.chdir(tmp_path)
+        assert main(["--setup-hook", "README.md"]) == 0
+        assert "fsg --update README.md" in (tmp_path / ".git" / "hooks" / "pre-commit").read_text(encoding="utf-8")
+        assert capsys.readouterr().out == ".git/hooks/pre-commit: fsg hook added\n"
+
+    def test_extends_pre_commit_config(self, tmp_path: Path, capsys, monkeypatch) -> None:
+        """Adds the entry to an existing .pre-commit-config.yaml and reminds to install pre-commit."""
+
+        init_repository(tmp_path)
+        (tmp_path / ".pre-commit-config.yaml").write_text("repos:\n", encoding="utf-8")
+        monkeypatch.chdir(tmp_path)
+        assert main(["--setup-hook", "README.md"]) == 0
+        assert "id: fsg" in (tmp_path / ".pre-commit-config.yaml").read_text(encoding="utf-8")
+        assert "pre-commit install" in capsys.readouterr().out
+
+    def test_reports_existing_hook(self, tmp_path: Path, capsys, monkeypatch) -> None:
+        """Reports that the hook is already present on a second run."""
+
+        init_repository(tmp_path)
+        monkeypatch.chdir(tmp_path)
+        main(["--setup-hook", "README.md"])
+        capsys.readouterr()
+        assert main(["--setup-hook", "README.md"]) == 0
+        assert capsys.readouterr().out == ".git/hooks/pre-commit: fsg hook already present\n"
+
+    def test_uses_path_relative_to_repository(self, tmp_path: Path, monkeypatch) -> None:
+        """Writes the target relative to the repository root when run from a subdirectory."""
+
+        init_repository(tmp_path)
+        (tmp_path / "docs").mkdir()
+        monkeypatch.chdir(tmp_path / "docs")
+        assert main(["--setup-hook", "index.md"]) == 0
+        assert "fsg --update docs/index.md" in (tmp_path / ".git" / "hooks" / "pre-commit").read_text(encoding="utf-8")
+
+    def test_rejects_directory_outside_repository(self, tmp_path: Path, capsys, monkeypatch) -> None:
+        """Returns 2 when the current directory is not inside a git repository."""
+
+        monkeypatch.chdir(tmp_path)
+        assert main(["--setup-hook", "README.md"]) == 2
+        assert capsys.readouterr().err == "fsg: not inside a git repository\n"
+
+    def test_rejects_unsupported_pre_commit_config(self, tmp_path: Path, capsys, monkeypatch) -> None:
+        """Returns 2 and leaves the file unchanged when the repos list is not in block style."""
+
+        init_repository(tmp_path)
+        config = tmp_path / ".pre-commit-config.yaml"
+        config.write_text("repos: []\n", encoding="utf-8")
+        monkeypatch.chdir(tmp_path)
+        assert main(["--setup-hook", "README.md"]) == 2
+        assert config.read_text(encoding="utf-8") == "repos: []\n"
+        assert "add the fsg hook manually" in capsys.readouterr().err

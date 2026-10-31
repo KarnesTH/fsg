@@ -28,7 +28,7 @@ class ReadmeSection:
         start = self._find_start()
         end = self.text.find(END_MARKER, start + len(START_MARKER)) if start != -1 else -1
         if start == -1 or end == -1:
-            raise ValueError(f"missing {START_MARKER} / {END_MARKER} markers in {self.path}")
+            raise ValueError(f"missing {START_MARKER} / {END_MARKER} markers")
         self.inner_start = start + len(START_MARKER)
         self.inner_end = end
 

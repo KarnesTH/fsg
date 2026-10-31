@@ -18,8 +18,10 @@
 - Inside a git repository, only files git tracks or would track are listed (`.gitignore` is respected)
 - Outside a repository, common generated and tool directories are skipped (`.venv`, `__pycache__`, `node_modules`, `target`, `.idea`, …)
 - Directories first, entries sorted case-insensitively, empty directories omitted
-- Keeps a marked section of your README up to date, with a check mode for CI and pre-commit
+- Keeps a marked section of your README up to date, with a check mode for CI
+- Sets up the commit hook for you: extends an existing `.pre-commit-config.yaml` or the native git hook, never overwrites
 - Limit the depth, render directories only or exclude entries by glob pattern
+- Options can live in `.fsg.toml` or `[tool.fsg]` in `pyproject.toml`
 - Output is wrapped in a `plaintext` code fence (optional) and always written as UTF-8
 - Optional ASCII branches (`|--`, `` `-- ``) for environments without Unicode support
 
@@ -36,44 +38,59 @@ uv tool install .
 ## Usage
 
 ```bash
-fsg [-h] [-d N] [--dirs-only] [-e PATTERN] [--no-fence] [-u FILE | -c FILE] [--ascii] [-V] [path]
+fsg [options] [path]
 ```
 
-| Argument                  | Description                                                              |
-|---------------------------|--------------------------------------------------------------------------|
-| `path`                    | Directory to render (default: current directory)                         |
-| `-d N`, `--depth N`       | Render only the first N levels below the root                            |
-| `--dirs-only`             | Render directories only                                                  |
-| `-e`, `--exclude PATTERN` | Leave out entries whose name or relative path matches the glob (repeatable) |
-| `--no-fence`              | Print the tree without the Markdown code fence                           |
-| `-u`, `--update FILE`     | Write the tree between the fsg markers of FILE                           |
-| `-c`, `--check FILE`      | Exit with status 1 when the tree in FILE is out of date                  |
-| `--ascii`                 | Draw the tree with ASCII instead of box-drawing characters               |
-| `-h`, `--help`            | Show the help text and exit                                              |
-| `-V`, `--version`         | Show the version and exit                                                |
+| Argument                         | Description                                                                 |
+|----------------------------------|-----------------------------------------------------------------------------|
+| `path`                           | Directory to render (default: current directory)                            |
+| `-d N`, `--depth N`              | Render only the first N levels below the root                               |
+| `--dirs-only`, `--no-dirs-only`  | Render directories only                                                     |
+| `-e`, `--exclude PATTERN`        | Leave out entries whose name or relative path matches the glob (repeatable) |
+| `--fence`, `--no-fence`          | Wrap the tree in a Markdown code fence (default: on)                        |
+| `--ascii`, `--no-ascii`          | Draw the tree with ASCII instead of box-drawing characters                  |
+| `-u`, `--update FILE`            | Write the tree between the fsg markers of FILE                              |
+| `-c`, `--check FILE`             | Exit with status 1 when the tree in FILE is out of date                     |
+| `--setup-hook FILE`              | Run `fsg --update FILE` on every commit                                     |
+| `-h`, `--help`                   | Show the help text and exit                                                 |
+| `-V`, `--version`                | Show the version and exit                                                   |
 
 Example:
 
 ```bash
-fsg src > tree.md
+fsg src --depth 2
 ```
-
 <!-- fsg:start -->
 ```plaintext
 src/
 └── fsg/
+    ├── hooks/
     ├── trees/
-    │   ├── __init__.py
-    │   ├── git_project_tree.py
-    │   ├── plain_project_tree.py
-    │   └── project_tree.py
     ├── __init__.py
     ├── __main__.py
     ├── cli.py
+    ├── config.py
     ├── constants.py
     └── readme_section.py
 ```
 <!-- fsg:end -->
+
+## Configuration
+
+With `--update` and `--check`, the path and all options not given on the command line are read from `.fsg.toml`
+or the `[tool.fsg]` table in `pyproject.toml`, searched from the directory of the target file upwards.
+`path` is relative to the config file. Command line options take precedence, exclude patterns are combined.
+Plain `fsg` ignores the config.
+
+```toml
+[tool.fsg]
+path = "src"
+depth = 2
+dirs-only = false
+exclude = ["*.log", "docs/api"]
+fence = true
+ascii = false
+```
 
 ## Keep your README up to date
 
@@ -84,16 +101,18 @@ Add the markers where the tree should appear:
 <!-- fsg:end -->
 ```
 
-Then run:
-
 ```bash
-fsg --update README.md   # writes the tree between the markers
-fsg --check README.md    # exit 1 if outdated, 2 if the file or markers are missing
+fsg --update README.md       # writes the tree between the markers
+fsg --check README.md        # exit 1 if outdated, 2 if the file or markers are missing
+fsg --setup-hook README.md   # updates the tree on every commit
 ```
 
-Use the same options for both, e.g. `fsg --check README.md --depth 2`.
+`--setup-hook` adds fsg to an existing `.pre-commit-config.yaml`. Without one, it adds a step to the git
+`pre-commit` hook that updates the tree and stops the commit so you can stage the change.
 
 ### pre-commit
+
+To add the hook by hand:
 
 ```yaml
 repos:
@@ -104,7 +123,7 @@ repos:
       # - id: fsg-check  # only checks, e.g. in CI
 ```
 
-Pass your own options via `args`, e.g. `args: [--update, docs/structure.md, --depth, "2"]`.
+Use `args` for another file, e.g. `args: [--update, docs/structure.md]`.
 
 ## Development
 
