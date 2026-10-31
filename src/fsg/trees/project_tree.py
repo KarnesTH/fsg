@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import Any
 
 from fsg.constants import ASCII_GLYPHS, IGNORED, UNICODE_GLYPHS
+from fsg.git import Git
 
 
 class ProjectTree:
@@ -51,7 +52,7 @@ class ProjectTree:
         from fsg.trees.git_project_tree import GitProjectTree
         from fsg.trees.plain_project_tree import PlainProjectTree
 
-        if GitProjectTree.is_repository(root):
+        if Git(root).is_repository():
             return GitProjectTree(root, **options)
         return PlainProjectTree(root, **options)
 

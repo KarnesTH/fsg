@@ -1,4 +1,5 @@
 import os
+import shutil
 import subprocess
 from pathlib import Path
 
@@ -97,3 +98,37 @@ class TestInstall:
         hook = GitHook(repository, "docs/my file.md")
         hook.install()
         assert "fsg --update 'docs/my file.md'" in hook.location().read_text(encoding="utf-8")
+    def test_quotes_target_in_message(self, repository: Path) -> None:
+        """Passes the target to printf as a quoted argument so shell syntax in the name is not executed."""
+
+        hook = GitHook(repository, 'a"$(touch PWNED)".md')
+        hook.install()
+        text = hook.location().read_text(encoding="utf-8")
+        assert "printf 'fsg: add %s and commit again\\n' 'a\"$(touch PWNED)\".md'" in text
+        assert 'echo' not in text
+
+    @pytest.mark.skipif(shutil.which("sh") is None, reason="sh is not installed")
+    def test_message_does_not_run_shell_syntax(self, repository: Path) -> None:
+        """Prints the target literally when the generated step runs."""
+
+        hook = GitHook(repository, "$(touch PWNED).md")
+        step = hook._step().replace("fsg --check", "false").replace("fsg --update", "true")
+        result = subprocess.run(
+            ["sh", "-c", f"command() {{ return 0; }}; {step}"],
+            check=False,
+            cwd=repository,
+            capture_output=True,
+            text=True,
+        )
+        assert result.stdout == "fsg: add $(touch PWNED).md and commit again\n"
+        assert not (repository / "PWNED").exists()
+
+    def test_keeps_permissions_of_existing_script(self, repository: Path) -> None:
+        """Leaves the permission bits of an existing script unchanged."""
+
+        hook = GitHook(repository, "README.md")
+        hook.location().write_text("#!/bin/sh\n", encoding="utf-8")
+        hook.location().chmod(0o750)
+        hook.install()
+        if os.name == "posix":
+            assert hook.location().stat().st_mode & 0o777 == 0o750

@@ -5,7 +5,7 @@
 <h1 align="center">fsg</h1>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/version-0.1.0-blue" alt="Version 0.1.0" />
+  <img src="https://img.shields.io/badge/version-0.1.1-blue" alt="Version 0.1.1" />
   <img src="https://img.shields.io/badge/python-3.11%2B-3776AB?logo=python&logoColor=white" alt="Python 3.11+" />
   <img src="https://img.shields.io/badge/dependencies-none-brightgreen" alt="No dependencies" />
   <img src="https://img.shields.io/badge/license-MIT-green" alt="MIT License" />
@@ -70,7 +70,9 @@ src/
     ├── cli.py
     ├── config.py
     ├── constants.py
-    └── readme_section.py
+    ├── git.py
+    ├── readme_section.py
+    └── text_file.py
 ```
 <!-- fsg:end -->
 
@@ -116,7 +118,7 @@ To add the hook by hand:
 ```yaml
 repos:
   - repo: https://github.com/KarnesTH/fsg
-    rev: v0.1.0
+    rev: v0.1.1
     hooks:
       - id: fsg          # updates README.md
       # - id: fsg-check  # only checks, e.g. in CI

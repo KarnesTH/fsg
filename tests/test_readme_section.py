@@ -61,10 +61,46 @@ class TestInit:
             ReadmeSection(readme)
 
     def test_rejects_missing_file(self, tmp_path: Path) -> None:
-        """Raises FileNotFoundError when the file does not exist."""
+        """Raises ValueError when the file does not exist."""
 
-        with pytest.raises(FileNotFoundError):
+        with pytest.raises(ValueError, match="file not found"):
             ReadmeSection(tmp_path / "README.md")
+
+    def test_rejects_non_utf8_file(self, tmp_path: Path) -> None:
+        """Raises ValueError when the file is not valid UTF-8."""
+
+        (tmp_path / "README.md").write_bytes(b"\xff\xfe\x00")
+        with pytest.raises(ValueError, match="UTF-8"):
+            ReadmeSection(tmp_path / "README.md")
+
+    def test_names_missing_end_marker(self, tmp_path: Path) -> None:
+        """Reports the end marker as missing when only the start marker exists."""
+
+        readme = write_readme(tmp_path, f"{START_MARKER}\ntree\n")
+        with pytest.raises(ValueError, match="fsg:end"):
+            ReadmeSection(readme)
+
+    def test_ignores_end_marker_inside_later_code_fence(self, tmp_path: Path) -> None:
+        """Refuses the file instead of using an end marker from an example block when the real one is missing."""
+
+        text = f"{START_MARKER}\n\n## Keep\ntext\n\n```markdown\n{START_MARKER}\n{END_MARKER}\n```\n"
+        readme = write_readme(tmp_path, text)
+        with pytest.raises(ValueError, match="fsg:end"):
+            ReadmeSection(readme)
+        assert read_raw(readme) == text
+
+    def test_ignores_inline_end_marker(self, tmp_path: Path) -> None:
+        """Skips an end marker that shares its line with other text."""
+
+        text = f"{START_MARKER}\ntree\nSee `{END_MARKER}` below.\n{END_MARKER}\n"
+        readme = write_readme(tmp_path, text)
+        assert ReadmeSection(readme).content() == f"\ntree\nSee `{END_MARKER}` below.\n"
+
+    def test_finds_end_marker_after_rendered_fence(self, tmp_path: Path) -> None:
+        """Finds the end marker that follows a fenced tree written by fsg."""
+
+        readme = write_readme(tmp_path, f"{START_MARKER}\n```plaintext\nroot/\n```\n{END_MARKER}\n")
+        assert ReadmeSection(readme).content() == "\n```plaintext\nroot/\n```\n"
 
     def test_skips_markers_inside_code_fence(self, tmp_path: Path) -> None:
         """Ignores markers shown inside a backtick fence and uses the pair that follows it."""

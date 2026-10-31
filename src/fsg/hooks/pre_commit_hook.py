@@ -4,6 +4,7 @@ from importlib.metadata import version
 from pathlib import Path
 
 from fsg.hooks.hook import PRE_COMMIT_CONFIG, Hook
+from fsg.text_file import TextFile
 
 REPOSITORY_URL = "https://github.com/KarnesTH/fsg"
 
@@ -23,15 +24,16 @@ class PreCommitHook(Hook):
         Returns False without writing when the file already references the fsg repository.
 
         Raises:
-            ValueError: The file has no block-style repos key at the top level.
+            ValueError: The file has no block-style repos key at the top level or is not valid UTF-8.
+            OSError: The file cannot be read or written.
         """
 
         path = self.location()
-        with path.open(encoding="utf-8", newline="") as file:
-            text = file.read()
+        file = TextFile(path)
+        text = file.read()
         if "karnesth/fsg" in text.lower():
             return False
-        newline = "\r\n" if "\r\n" in text else "\n"
+        newline = TextFile.newline(text)
         lines = text.splitlines(keepends=True)
         start = next((index for index, line in enumerate(lines) if line.rstrip() == "repos:"), None)
         if start is None:
@@ -51,8 +53,7 @@ class PreCommitHook(Hook):
         if not lines[last].endswith(("\n", "\r")):
             lines[last] += newline
         lines.insert(last + 1, self._entry(indent if indent is not None else "  ", newline))
-        with path.open("w", encoding="utf-8", newline="") as file:
-            file.write("".join(lines))
+        file.write("".join(lines))
         return True
 
     def _entry(self, indent: str, newline: str) -> str:

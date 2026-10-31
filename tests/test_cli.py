@@ -270,9 +270,7 @@ class TestSync:
         readme = tmp_path / "README.md"
         readme.write_text("# Title\n", encoding="utf-8")
         assert main([option, str(readme), str(tmp_path)]) == 2
-        assert capsys.readouterr().err == (
-            f"fsg: {readme}: missing {START_MARKER} / {END_MARKER} markers\n"
-        )
+        assert capsys.readouterr().err == f"fsg: {readme}: missing {START_MARKER} marker\n"
 
     @pytest.mark.parametrize("option", ["--update", "--check"])
     def test_reports_missing_file(self, option: str, tmp_path: Path, capsys) -> None:
@@ -385,6 +383,18 @@ class TestConfig:
         assert capsys.readouterr().err == f"fsg: {tmp_path / 'gone'}: not a directory\n"
 
 
+def write_markers(path: Path) -> Path:
+    """Creates the file with an empty marker block, including missing parent directories, and returns its path.
+
+    Args:
+        path: File to create.
+    """
+
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(f"{START_MARKER}\n{END_MARKER}\n", encoding="utf-8")
+    return path
+
+
 @requires_git
 class TestSetupHook:
     """Covers adding the update step to the commit hooks."""
@@ -393,6 +403,7 @@ class TestSetupHook:
         """Creates the native pre-commit hook and reports its location."""
 
         init_repository(tmp_path)
+        write_markers(tmp_path / "README.md")
         monkeypatch.chdir(tmp_path)
         assert main(["--setup-hook", "README.md"]) == 0
         assert "fsg --update README.md" in (tmp_path / ".git" / "hooks" / "pre-commit").read_text(encoding="utf-8")
@@ -402,6 +413,7 @@ class TestSetupHook:
         """Adds the entry to an existing .pre-commit-config.yaml and reminds to install pre-commit."""
 
         init_repository(tmp_path)
+        write_markers(tmp_path / "README.md")
         (tmp_path / ".pre-commit-config.yaml").write_text("repos:\n", encoding="utf-8")
         monkeypatch.chdir(tmp_path)
         assert main(["--setup-hook", "README.md"]) == 0
@@ -412,6 +424,7 @@ class TestSetupHook:
         """Reports that the hook is already present on a second run."""
 
         init_repository(tmp_path)
+        write_markers(tmp_path / "README.md")
         monkeypatch.chdir(tmp_path)
         main(["--setup-hook", "README.md"])
         capsys.readouterr()
@@ -422,7 +435,7 @@ class TestSetupHook:
         """Writes the target relative to the repository root when run from a subdirectory."""
 
         init_repository(tmp_path)
-        (tmp_path / "docs").mkdir()
+        write_markers(tmp_path / "docs" / "index.md")
         monkeypatch.chdir(tmp_path / "docs")
         assert main(["--setup-hook", "index.md"]) == 0
         assert "fsg --update docs/index.md" in (tmp_path / ".git" / "hooks" / "pre-commit").read_text(encoding="utf-8")
@@ -434,13 +447,50 @@ class TestSetupHook:
         assert main(["--setup-hook", "README.md"]) == 2
         assert capsys.readouterr().err == "fsg: not inside a git repository\n"
 
+    def test_rejects_missing_target(self, tmp_path: Path, capsys, monkeypatch) -> None:
+        """Returns 2 and writes no hook when the target file does not exist."""
+
+        init_repository(tmp_path)
+        monkeypatch.chdir(tmp_path)
+        assert main(["--setup-hook", "READMEE.md"]) == 2
+        assert capsys.readouterr().err == "fsg: READMEE.md: file not found\n"
+        assert not (tmp_path / ".git" / "hooks" / "pre-commit").exists()
+
+    def test_rejects_target_without_markers(self, tmp_path: Path, capsys, monkeypatch) -> None:
+        """Returns 2 and leaves an existing pre-commit config unchanged when the target lacks the markers."""
+
+        init_repository(tmp_path)
+        (tmp_path / "README.md").write_text("# Title\n", encoding="utf-8")
+        config = tmp_path / ".pre-commit-config.yaml"
+        config.write_text("repos:\n", encoding="utf-8")
+        monkeypatch.chdir(tmp_path)
+        assert main(["--setup-hook", "README.md"]) == 2
+        assert "missing" in capsys.readouterr().err
+        assert config.read_text(encoding="utf-8") == "repos:\n"
+
     def test_rejects_unsupported_pre_commit_config(self, tmp_path: Path, capsys, monkeypatch) -> None:
         """Returns 2 and leaves the file unchanged when the repos list is not in block style."""
 
         init_repository(tmp_path)
+        write_markers(tmp_path / "README.md")
         config = tmp_path / ".pre-commit-config.yaml"
         config.write_text("repos: []\n", encoding="utf-8")
         monkeypatch.chdir(tmp_path)
         assert main(["--setup-hook", "README.md"]) == 2
         assert config.read_text(encoding="utf-8") == "repos: []\n"
         assert "add the fsg hook manually" in capsys.readouterr().err
+
+
+@requires_git
+class TestGitFailure:
+    """Covers errors raised while collecting the paths with git."""
+
+    def test_reports_failing_git(self, tmp_path: Path, capsys, monkeypatch) -> None:
+        """Returns 2 and writes nothing when git ls-files fails instead of rendering an empty tree."""
+
+        init_repository(tmp_path)
+        readme = write_markers(tmp_path / "README.md")
+        monkeypatch.setattr("fsg.git.Git.ls_files", lambda self: (_ for _ in ()).throw(OSError("git ls-files failed: boom")))
+        assert main(["--update", str(readme), str(tmp_path)]) == 2
+        assert capsys.readouterr().err == "fsg: git ls-files failed: boom\n"
+        assert readme.read_text(encoding="utf-8") == f"{START_MARKER}\n{END_MARKER}\n"

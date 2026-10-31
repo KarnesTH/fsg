@@ -32,7 +32,19 @@ class TestInit:
     def test_resolves_path_against_source(self, tmp_path: Path) -> None:
         """Stores the path relative to the directory of the config file."""
 
-        assert Config({"path": "src"}, tmp_path / ".fsg.toml").path == tmp_path / "src"
+        assert Config({"path": "src"}, tmp_path / ".fsg.toml").path == (tmp_path / "src").resolve()
+
+    @pytest.mark.parametrize("path", ["..", "../other", "/", "src/../../x"])
+    def test_rejects_path_outside_config_directory(self, tmp_path: Path, path: str) -> None:
+        """Raises ValueError when the path leaves the directory of the config file."""
+
+        with pytest.raises(ValueError, match="must stay inside"):
+            Config({"path": path}, tmp_path / "project" / ".fsg.toml")
+
+    def test_accepts_config_directory_itself(self, tmp_path: Path) -> None:
+        """Accepts . as the directory of the config file."""
+
+        assert Config({"path": "."}, tmp_path / ".fsg.toml").path == tmp_path.resolve()
 
     def test_keeps_path_without_source(self) -> None:
         """Stores the path as given when the values come from no file."""

@@ -1,11 +1,11 @@
 import argparse
 import io
-import subprocess
 import sys
 from importlib.metadata import version
 from pathlib import Path
 
 from fsg.config import Config
+from fsg.git import Git
 from fsg.hooks import GitHook, Hook
 from fsg.readme_section import ReadmeSection
 from fsg.trees import ProjectTree
@@ -128,7 +128,10 @@ def main(argv: list[str] | None = None) -> int:
     root = args.path or config.path or Path(".")
     if not root.is_dir():
         return _fail(f"{root}: not a directory", 1)
-    output = ProjectTree.for_path(root, **config.merge(args)).render()
+    try:
+        output = ProjectTree.for_path(root, **config.merge(args)).render()
+    except OSError as error:
+        return _fail(_reason(error), 2)
     if target is None:
         print(output)
         return 0
@@ -146,19 +149,19 @@ def _sync(target: Path, output: str, check: bool) -> int:
 
     try:
         section = ReadmeSection(target)
-    except FileNotFoundError:
-        return _fail(f"{target}: file not found", 2)
-    except UnicodeDecodeError:
-        return _fail(f"{target}: not a UTF-8 text file", 2)
     except (OSError, ValueError) as error:
-        return _fail(f"{target}: {getattr(error, 'strerror', None) or error}", 2)
+        return _fail(f"{target}: {_reason(error)}", 2)
     if check:
         if section.is_current(output):
             print(f"{target}: tree is up to date")
             return 0
         print(f"{target}: tree is out of date, run fsg --update {target}", file=sys.stderr)
         return 1
-    if section.update(output):
+    try:
+        changed = section.update(output)
+    except OSError as error:
+        return _fail(f"{target}: {_reason(error)}", 2)
+    if changed:
         print(f"{target}: tree updated")
     else:
         print(f"{target}: tree already up to date")
@@ -168,13 +171,19 @@ def _sync(target: Path, output: str, check: bool) -> int:
 def _setup_hook(target: Path) -> int:
     """Adds the update step for the target to the hooks of the repository around the current directory and prints the result.
 
+    The target must exist and hold both markers before a hook is written.
+
     Args:
         target: File holding the markers, relative to the current directory.
     """
 
-    repository = Hook.repository_root(Path.cwd())
+    repository = Git(Path.cwd()).toplevel()
     if repository is None:
         return _fail("not inside a git repository", 2)
+    try:
+        ReadmeSection(target)
+    except (OSError, ValueError) as error:
+        return _fail(f"{target}: {_reason(error)}", 2)
     try:
         relative = target.resolve().relative_to(repository.resolve()).as_posix()
     except ValueError:
@@ -183,8 +192,8 @@ def _setup_hook(target: Path) -> int:
     try:
         location = hook.location()
         added = hook.install()
-    except (OSError, ValueError, subprocess.CalledProcessError) as error:
-        return _fail(str(error), 2)
+    except (OSError, ValueError) as error:
+        return _fail(_reason(error), 2)
     root = repository.resolve()
     location = location.resolve()
     shown = (location.relative_to(root) if location.is_relative_to(root) else location).as_posix()
@@ -207,3 +216,13 @@ def _fail(message: str, status: int) -> int:
 
     print(f"fsg: {message}", file=sys.stderr)
     return status
+
+
+def _reason(error: Exception) -> str:
+    """Returns the operating system message of an OSError with a strerror, otherwise the text of the error.
+
+    Args:
+        error: Error to describe.
+    """
+
+    return getattr(error, "strerror", None) or str(error)

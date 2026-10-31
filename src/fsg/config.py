@@ -112,7 +112,7 @@ class Config:
     def _set(self, key: str, value: Any) -> None:
         """Checks the type of one option value and stores it on the matching attribute.
 
-        A path is resolved against the directory of the config file.
+        A path is resolved against the directory of the config file and must not leave it.
 
         Args:
             key: Option name as written in the config file.
@@ -125,7 +125,14 @@ class Config:
         if key == "path":
             if not isinstance(value, str):
                 raise ValueError(f"{self.source}: path must be a string")
-            self.path = self.source.parent / value if self.source else Path(value)
+            if self.source is None:
+                self.path = Path(value)
+                return
+            base = self.source.parent.resolve()
+            path = (base / value).resolve()
+            if not path.is_relative_to(base):
+                raise ValueError(f"{self.source}: path must stay inside {base}")
+            self.path = path
         elif key == "depth":
             if not isinstance(value, int) or isinstance(value, bool) or value < 1:
                 raise ValueError(f"{self.source}: depth must be an integer of at least 1")

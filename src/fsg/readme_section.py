@@ -1,5 +1,7 @@
 from pathlib import Path
 
+from fsg.text_file import TextFile
+
 START_MARKER = "<!-- fsg:start -->"
 END_MARKER = "<!-- fsg:end -->"
 
@@ -8,28 +10,29 @@ class ReadmeSection:
     """Reads, compares and replaces the block between the fsg markers of a text file."""
 
     def __init__(self, path: Path) -> None:
-        """Reads the file without newline translation and locates the block between the start and end marker.
+        """Reads the file and locates the block between the start and end marker.
 
-        The start marker counts only on a line of its own outside a fenced code block;
-        the end marker is the first one following it.
+        Both markers count only on a line of their own outside a fenced code block;
+        the end marker is the first such line after the start marker.
 
         Args:
             path: Path of the file holding the markers.
 
         Raises:
-            FileNotFoundError: The file does not exist.
-            ValueError: A marker is missing or the end marker precedes the start marker.
+            ValueError: The file does not exist, is not UTF-8, or a marker is missing.
+            OSError: The file cannot be read.
         """
 
-        self.path = Path(path)
-        with self.path.open(encoding="utf-8", newline="") as file:
-            self.text = file.read()
-        self.newline = "\r\n" if "\r\n" in self.text else "\n"
-        start = self._find_start()
-        end = self.text.find(END_MARKER, start + len(START_MARKER)) if start != -1 else -1
-        if start == -1 or end == -1:
-            raise ValueError(f"missing {START_MARKER} / {END_MARKER} markers")
+        self.file = TextFile(path)
+        self.text = self.file.read()
+        self.newline = TextFile.newline(self.text)
+        start = self._find_line(START_MARKER, 0)
+        if start == -1:
+            raise ValueError(f"missing {START_MARKER} marker")
         self.inner_start = start + len(START_MARKER)
+        end = self._find_line(END_MARKER, self.inner_start)
+        if end == -1:
+            raise ValueError(f"missing {END_MARKER} marker after {START_MARKER}")
         self.inner_end = end
 
     def content(self) -> str:
@@ -51,32 +54,42 @@ class ReadmeSection:
 
         Args:
             tree: Rendered tree, using \\n line breaks.
+
+        Raises:
+            OSError: The file cannot be written.
         """
 
         block = self._block(tree)
         if self.content() == block:
             return False
-        self.text = self.text[:self.inner_start] + block + self.text[self.inner_end:]
+        text = self.text[:self.inner_start] + block + self.text[self.inner_end:]
+        self.file.write(text)
+        self.text = text
         self.inner_end = self.inner_start + len(block)
-        with self.path.open("w", encoding="utf-8", newline="") as file:
-            file.write(self.text)
         return True
 
-    def _find_start(self) -> int:
-        """Returns the offset of the first start marker standing alone on a line outside a fenced code block, or -1."""
+    def _find_line(self, marker: str, offset: int) -> int:
+        """Returns the offset of the first line at or after the offset that holds only the marker outside a fenced code block, or -1.
 
-        offset = 0
+        Scanning starts at the beginning of the line containing the offset.
+
+        Args:
+            marker: Marker text the line must consist of, apart from surrounding whitespace.
+            offset: Position in the text to start from.
+        """
+
+        position = self.text.rfind("\n", 0, offset) + 1
         fence = ""
-        for line in self.text.splitlines(keepends=True):
+        for line in self.text[position:].splitlines(keepends=True):
             stripped = line.strip()
             if fence:
                 if stripped.startswith(fence):
                     fence = ""
             elif stripped.startswith(("```", "~~~")):
                 fence = stripped[:3]
-            elif stripped == START_MARKER:
-                return offset + line.index(START_MARKER)
-            offset += len(line)
+            elif stripped == marker and position + line.index(marker) >= offset:
+                return position + line.index(marker)
+            position += len(line)
         return -1
 
     def _block(self, tree: str) -> str:

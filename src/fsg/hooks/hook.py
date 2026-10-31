@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import subprocess
 from pathlib import Path
 
 PRE_COMMIT_CONFIG = ".pre-commit-config.yaml"
@@ -19,29 +18,6 @@ class Hook:
 
         self.repository = Path(repository)
         self.target = target
-
-    @staticmethod
-    def repository_root(start: Path) -> Path | None:
-        """Returns the root of the git working tree containing the start directory, or None outside a repository.
-
-        Args:
-            start: Directory to start from.
-        """
-
-        try:
-            result = subprocess.run(
-                ["git", "rev-parse", "--show-toplevel"],
-                cwd=start,
-                capture_output=True,
-                text=True,
-                encoding="utf-8",
-                check=False,
-            )
-        except (FileNotFoundError, NotADirectoryError):
-            return None
-        if result.returncode != 0:
-            return None
-        return Path(result.stdout.strip())
 
     @classmethod
     def for_repository(cls, repository: Path, target: str) -> Hook:

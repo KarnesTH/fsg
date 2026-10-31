@@ -1,35 +1,10 @@
 import subprocess
 from pathlib import Path
 
+import pytest
+
 from fsg.trees import GitProjectTree, PlainProjectTree
 from tests.conftest import create_files, init_repository, requires_git
-
-
-@requires_git
-class TestIsRepository:
-    """Covers the git working tree detection."""
-
-    def test_detects_repository(self, tmp_path: Path) -> None:
-        """Reports True for a directory containing a git repository."""
-
-        init_repository(tmp_path)
-        assert GitProjectTree.is_repository(tmp_path) is True
-
-    def test_rejects_plain_directory(self, tmp_path: Path) -> None:
-        """Reports False for a directory outside any repository."""
-
-        assert GitProjectTree.is_repository(tmp_path) is False
-
-    def test_rejects_missing_directory(self, tmp_path: Path) -> None:
-        """Reports False instead of raising when the path does not exist."""
-
-        assert GitProjectTree.is_repository(tmp_path / "missing") is False
-
-    def test_rejects_file_path(self, tmp_path: Path) -> None:
-        """Reports False instead of raising when the path is a file."""
-
-        create_files(tmp_path, ["__main__.py"])
-        assert GitProjectTree.is_repository(tmp_path / "__main__.py") is False
 
 
 @requires_git
@@ -70,11 +45,12 @@ class TestCollect:
         subprocess.run(["git", "add", "__main__.py"], cwd=tmp_path, check=True)
         assert "__main__.py" in GitProjectTree(tmp_path).render()
 
-    def test_returns_nothing_outside_repository(self, tmp_path: Path) -> None:
-        """Returns an empty result when git fails because there is no repository."""
+    def test_raises_outside_repository(self, tmp_path: Path) -> None:
+        """Raises OSError with the git message instead of returning an empty result when git fails."""
 
         create_files(tmp_path, ["__main__.py"])
-        assert GitProjectTree(tmp_path).collect() == []
+        with pytest.raises(OSError, match="git ls-files failed"):
+            GitProjectTree(tmp_path).collect()
 
     def test_matches_plain_output_for_a_clean_project(self, tmp_path: Path) -> None:
         """Produces the same tree as the plain walk when no repository-specific rules apply."""
