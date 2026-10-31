@@ -1,3 +1,4 @@
+import os
 import subprocess
 from pathlib import Path
 
@@ -32,14 +33,14 @@ def calls(monkeypatch) -> list[dict]:
 
 
 def fake_tool(directory: Path, name: str) -> str:
-    """Creates an executable file with the name and returns its path.
+    """Creates an executable file with the name, plus .exe on Windows, and returns its path.
 
     Args:
         directory: Directory the file is created in.
-        name: File name.
+        name: Program name without extension.
     """
 
-    path = directory / name
+    path = directory / (f"{name}.exe" if os.name == "nt" else name)
     path.write_text("", encoding="utf-8")
     path.chmod(0o755)
     return str(path)
