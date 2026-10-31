@@ -1,5 +1,6 @@
 from pathlib import Path
 
+from fsg.constants import ASCII_GLYPHS
 from fsg.trees import GitProjectTree, PlainProjectTree, ProjectTree
 from tests.conftest import create_files, init_repository, requires_git
 
@@ -27,6 +28,11 @@ class TestForPath:
         subdirectory = tmp_path / "gui"
         subdirectory.mkdir()
         assert isinstance(ProjectTree.for_path(subdirectory), GitProjectTree)
+
+    def test_passes_ascii_option(self, tmp_path: Path) -> None:
+        """Hands the ASCII option over to the selected implementation."""
+
+        assert ProjectTree.for_path(tmp_path, use_ascii=True).glyphs == ASCII_GLYPHS
 
 
 class TestCollect:
@@ -109,3 +115,14 @@ class TestRender:
         create_files(tmp_path, ["__main__.py"])
         monkeypatch.chdir(tmp_path)
         assert PlainProjectTree(Path(".")).render().splitlines()[1] == f"{tmp_path.name}/"
+    def test_renders_ascii_connectors(self, tmp_path: Path) -> None:
+        """Draws branches, last entries and pipes with ASCII characters when use_ascii is set."""
+
+        create_files(tmp_path, ["src/gui/window.py", "README.md"])
+        lines = PlainProjectTree(tmp_path, use_ascii=True).render().splitlines()
+        assert lines[2:6] == [
+            "|-- src/",
+            "|   `-- gui/",
+            "|       `-- window.py",
+            "`-- README.md",
+        ]

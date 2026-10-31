@@ -6,19 +6,20 @@
 
 <p align="center">
   <img src="https://img.shields.io/badge/version-0.1.0-blue" alt="Version 0.1.0" />
-  <img src="https://img.shields.io/badge/python-3.14%2B-3776AB?logo=python&logoColor=white" alt="Python 3.14+" />
+  <img src="https://img.shields.io/badge/python-3.11%2B-3776AB?logo=python&logoColor=white" alt="Python 3.11+" />
   <img src="https://img.shields.io/badge/dependencies-none-brightgreen" alt="No dependencies" />
   <img src="https://img.shields.io/badge/license-MIT-green" alt="MIT License" />
 </p>
 
-<p align="center">Prints a project structure as a tree, ready to paste into a GitHub README.</p>
+<p align="center">Generates clean directory trees that respect .gitignore and keep your docs up to date.</p>
 
 ## Features
 
 - Inside a git repository, only files git tracks or would track are listed (`.gitignore` is respected)
 - Outside a repository, common generated and tool directories are skipped (`.venv`, `__pycache__`, `node_modules`, `target`, `.idea`, …)
 - Directories first, entries sorted case-insensitively, empty directories omitted
-- Output is wrapped in a `plaintext` code fence
+- Output is wrapped in a `plaintext` code fence and always written as UTF-8
+- Optional ASCII branches (`|--`, `` `-- ``) for environments without Unicode support
 
 ## Installation
 
@@ -33,14 +34,15 @@ uv tool install .
 ## Usage
 
 ```bash
-fsg [-h] [-V] [path]
+fsg [-h] [--ascii] [-V] [path]
 ```
 
-| Argument          | Description                                         |
-|-------------------|-----------------------------------------------------|
-| `path`            | Directory to render (default: current directory)    |
-| `-h`, `--help`    | Show the help text and exit                         |
-| `-V`, `--version` | Show the version and exit                           |
+| Argument          | Description                                                |
+|-------------------|------------------------------------------------------------|
+| `path`            | Directory to render (default: current directory)           |
+| `--ascii`         | Draw the tree with ASCII instead of box-drawing characters |
+| `-h`, `--help`    | Show the help text and exit                                |
+| `-V`, `--version` | Show the version and exit                                  |
 
 Example:
 

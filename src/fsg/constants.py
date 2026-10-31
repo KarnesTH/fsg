@@ -1,7 +1,5 @@
-BRANCH = "├── "
-LAST = "└── "
-PIPE = "│   "
-SPACE = "    "
+UNICODE_GLYPHS = {"branch": "├── ", "last": "└── ", "pipe": "│   ", "space": "    "}
+ASCII_GLYPHS = {"branch": "|-- ", "last": "`-- ", "pipe": "|   ", "space": "    "}
 
 IGNORED = {
     ".git", ".svn", ".hg",

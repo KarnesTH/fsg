@@ -1,3 +1,4 @@
+import io
 from importlib.metadata import version
 from pathlib import Path
 
@@ -25,6 +26,16 @@ class TestParseArgs:
 
         with pytest.raises(SystemExit):
             parse_args(["src", "tests"])
+
+    def test_ascii_defaults_to_false(self) -> None:
+        """Returns False for use_ascii when the option is not given."""
+
+        assert parse_args([]).use_ascii is False
+
+    def test_reads_ascii_option(self) -> None:
+        """Returns True for use_ascii when --ascii is given."""
+
+        assert parse_args(["--ascii"]).use_ascii is True
 
     def test_rejects_unknown_options(self) -> None:
         """Exits when an unknown option is given."""
@@ -98,3 +109,22 @@ class TestMain:
             main([option])
         assert exit_info.value.code == 0
         assert capsys.readouterr().out.strip() == f"fsg {version('fsg')}"
+    def test_prints_ascii_tree(self, tmp_path: Path, capsys) -> None:
+        """Writes the tree with ASCII connectors when --ascii is given."""
+
+        create_files(tmp_path, ["main.py"])
+        assert main(["--ascii", str(tmp_path)]) == 0
+        output = capsys.readouterr().out
+        assert "`-- main.py" in output
+        assert "└──" not in output
+
+    def test_writes_utf8_to_non_utf8_stdout(self, tmp_path: Path, monkeypatch) -> None:
+        """Switches a stdout with a legacy encoding to UTF-8 before writing the tree."""
+
+        create_files(tmp_path, ["main.py"])
+        buffer = io.BytesIO()
+        stdout = io.TextIOWrapper(buffer, encoding="cp1252")
+        monkeypatch.setattr("sys.stdout", stdout)
+        assert main([str(tmp_path)]) == 0
+        stdout.flush()
+        assert "└── main.py" in buffer.getvalue().decode("utf-8")

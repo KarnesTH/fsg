@@ -1,4 +1,5 @@
 import argparse
+import io
 import sys
 from importlib.metadata import version
 from pathlib import Path
@@ -15,7 +16,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
 
     parser = argparse.ArgumentParser(
         prog="fsg",
-        description="Prints a project structure as a tree for GitHub READMEs.",
+        description="Generates clean directory trees that respect .gitignore and keep your docs up to date.",
     )
     parser.add_argument(
         "path",
@@ -23,6 +24,12 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         default=".",
         type=Path,
         help="project directory to render (default: the current directory)",
+    )
+    parser.add_argument(
+        "--ascii",
+        action="store_true",
+        dest="use_ascii",
+        help="draw the tree with ASCII characters instead of box-drawing characters",
     )
     parser.add_argument(
         "-V",
@@ -34,7 +41,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
 
 
 def main(argv: list[str] | None = None) -> int:
-    """Renders the tree for the parsed path and writes it to stdout.
+    """Renders the tree for the parsed path and writes it UTF-8 encoded to stdout.
 
     Args:
         argv: Argument list to use instead of the command line arguments.
@@ -44,5 +51,7 @@ def main(argv: list[str] | None = None) -> int:
     if not args.path.is_dir():
         print(f"not a directory: {args.path}", file=sys.stderr)
         return 1
-    print(ProjectTree.for_path(args.path).render())
+    if isinstance(sys.stdout, io.TextIOWrapper):
+        sys.stdout.reconfigure(encoding="utf-8")
+    print(ProjectTree.for_path(args.path, args.use_ascii).render())
     return 0

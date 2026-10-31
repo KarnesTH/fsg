@@ -1,8 +1,8 @@
 [project]
 name = "fsg"
 version = "0.1.0"
-description = "Prints a project structure as a tree for GitHub READMEs"
-requires-python = ">=3.14"
+description = "Generates clean directory trees that respect .gitignore and keep your docs up to date."
+requires-python = ">=3.11"
 dependencies = []
 
 [project.scripts]
