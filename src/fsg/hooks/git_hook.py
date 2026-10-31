@@ -11,13 +11,14 @@ class GitHook(Hook):
     """Writes the fsg step into the native pre-commit hook script of the repository."""
 
     def location(self) -> Path:
-        """Returns the pre-commit script inside the hooks directory git reports, honoring core.hooksPath."""
+        """Returns the pre-commit script inside the hooks directory git reports, honouring core.hooksPath."""
 
         result = subprocess.run(
             ["git", "rev-parse", "--git-path", "hooks"],
             cwd=self.repository,
             capture_output=True,
             text=True,
+            encoding="utf-8",
             check=True,
         )
         hooks = Path(result.stdout.strip())

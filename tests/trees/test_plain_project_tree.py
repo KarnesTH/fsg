@@ -1,5 +1,7 @@
 from pathlib import Path
 
+import pytest
+
 from fsg.trees import PlainProjectTree
 from tests.conftest import create_files, requires_unprivileged_user
 
@@ -40,7 +42,10 @@ class TestCollect:
         """Renders a symlinked directory as an entry without descending into it."""
 
         create_files(tmp_path, ["real/deep/file.py"])
-        (tmp_path / "link").symlink_to(tmp_path / "real", target_is_directory=True)
+        try:
+            (tmp_path / "link").symlink_to(tmp_path / "real", target_is_directory=True)
+        except OSError:
+            pytest.skip("creating symlinks is not permitted")
         output = PlainProjectTree(tmp_path).render()
         assert "link" in output
         assert output.count("file.py") == 1

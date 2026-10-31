@@ -21,6 +21,7 @@ class GitProjectTree(ProjectTree):
                 cwd=root,
                 capture_output=True,
                 text=True,
+            encoding="utf-8",
                 check=False,
             )
         except (FileNotFoundError, NotADirectoryError):
@@ -35,6 +36,7 @@ class GitProjectTree(ProjectTree):
             cwd=self.root,
             capture_output=True,
             text=True,
+            encoding="utf-8",
             check=False,
         )
         if result.returncode != 0:

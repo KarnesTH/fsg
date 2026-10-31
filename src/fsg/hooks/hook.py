@@ -34,6 +34,7 @@ class Hook:
                 cwd=start,
                 capture_output=True,
                 text=True,
+                encoding="utf-8",
                 check=False,
             )
         except (FileNotFoundError, NotADirectoryError):

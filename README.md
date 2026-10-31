@@ -27,12 +27,11 @@
 
 ## Installation
 
-Requires [uv](https://docs.astral.sh/uv/) and git (optional, for `.gitignore` support).
+Requires Python 3.11+ and git (optional, for `.gitignore` support).
 
 ```bash
-git clone https://github.com/KarnesTH/fsg.git
-cd fsg
-uv tool install .
+uv tool install fsg   # or: pipx install fsg
+uvx fsg               # run without installing
 ```
 
 ## Usage
@@ -128,6 +127,8 @@ Use `args` for another file, e.g. `args: [--update, docs/structure.md]`.
 ## Development
 
 ```bash
+git clone https://github.com/KarnesTH/fsg.git
+cd fsg
 uv sync
 uv run pytest
 ```

@@ -187,7 +187,7 @@ def _setup_hook(target: Path) -> int:
         return _fail(str(error), 2)
     root = repository.resolve()
     location = location.resolve()
-    shown = location.relative_to(root) if location.is_relative_to(root) else location
+    shown = (location.relative_to(root) if location.is_relative_to(root) else location).as_posix()
     if not added:
         print(f"{shown}: fsg hook already present")
     elif isinstance(hook, GitHook):

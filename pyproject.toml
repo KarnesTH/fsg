@@ -2,8 +2,33 @@
 name = "fsg"
 version = "0.1.0"
 description = "Generates clean directory trees that respect .gitignore and keep your docs up to date."
+readme = "README.md"
+license = "MIT"
+license-files = ["LICENSE"]
+authors = [{ name = "Patrick Hähnel" }]
 requires-python = ">=3.11"
 dependencies = []
+keywords = ["tree", "directory", "project-structure", "readme", "documentation", "gitignore", "pre-commit", "cli"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Environment :: Console",
+    "Intended Audience :: Developers",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+    "Topic :: Documentation",
+    "Topic :: Software Development :: Documentation",
+    "Topic :: Utilities",
+]
+
+[project.urls]
+Homepage = "https://github.com/KarnesTH/fsg"
+Issues = "https://github.com/KarnesTH/fsg/issues"
+Changelog = "https://github.com/KarnesTH/fsg/blob/main/CHANGELOG.md"
 
 [project.scripts]
 fsg = "fsg.cli:main"
@@ -14,11 +39,14 @@ dev = [
 ]
 
 [build-system]
-requires = ["hatchling"]
+requires = ["hatchling>=1.27"]
 build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/fsg"]
+
+[tool.hatch.build.targets.sdist]
+include = ["src", "tests", "CHANGELOG.md"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
@@ -26,7 +54,3 @@ testpaths = ["tests"]
 [tool.fsg]
 path = "src"
 depth = 2
-dirs-only = false
-exclude = ["*.log", "docs/api"]
-fence = true
-ascii = false
