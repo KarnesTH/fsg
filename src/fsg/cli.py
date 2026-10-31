@@ -1,5 +1,6 @@
 import argparse
 import sys
+from importlib.metadata import version
 from pathlib import Path
 
 from fsg.trees import ProjectTree
@@ -22,6 +23,12 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         default=".",
         type=Path,
         help="project directory to render (default: the current directory)",
+    )
+    parser.add_argument(
+        "-V",
+        "--version",
+        action="version",
+        version=f"%(prog)s {version('fsg')}",
     )
     return parser.parse_args(argv)
 

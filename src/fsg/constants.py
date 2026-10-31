@@ -11,4 +11,5 @@ IGNORED = {
     "node_modules", "target", "dist", "build", "out",
     ".godot", ".import",
     ".DS_Store", "Thumbs.db",
+    "uv.lock",
 }

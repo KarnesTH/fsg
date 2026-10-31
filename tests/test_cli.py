@@ -1,3 +1,4 @@
+from importlib.metadata import version
 from pathlib import Path
 
 import pytest
@@ -80,3 +81,20 @@ class TestMain:
             main(["--help"])
         assert exit_info.value.code == 0
         assert "usage: fsg" in capsys.readouterr().out
+
+    def test_prints_help_with_short_option(self, capsys) -> None:
+        """Exits after writing the usage text to stdout when -h is given."""
+
+        with pytest.raises(SystemExit) as exit_info:
+            main(["-h"])
+        assert exit_info.value.code == 0
+        assert "usage: fsg" in capsys.readouterr().out
+
+    @pytest.mark.parametrize("option", ["--version", "-V"])
+    def test_prints_version(self, option: str, capsys) -> None:
+        """Exits after writing the program name and the installed package version to stdout."""
+
+        with pytest.raises(SystemExit) as exit_info:
+            main([option])
+        assert exit_info.value.code == 0
+        assert capsys.readouterr().out.strip() == f"fsg {version('fsg')}"
