@@ -13,6 +13,10 @@
 
 <p align="center">Generates clean directory trees that respect .gitignore and keep your docs up to date.</p>
 
+<p align="center">
+  <img src="https://raw.githubusercontent.com/KarnesTH/fsg/main/docs/demo.gif" alt="fsg demo" />
+</p>
+
 ## Features
 
 - Inside a git repository, only files git tracks or would track are listed (`.gitignore` is respected)
