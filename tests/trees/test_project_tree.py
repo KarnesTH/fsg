@@ -39,8 +39,10 @@ class TestForPath:
     def test_passes_render_options(self, tmp_path: Path) -> None:
         """Hands depth, dirs_only, exclude and fence over to the selected implementation."""
 
-        tree = ProjectTree.for_path(tmp_path, depth=2, dirs_only=True, exclude=["*.pyc"], fence=False)
-        assert (tree.depth, tree.dirs_only, tree.exclude, tree.fence) == (2, True, ("*.pyc",), False)
+        tree = ProjectTree.for_path(tmp_path, depth=2, dirs_only=True, exclude=["*.pyc"], include=["*.py"], fence=False)
+        assert (tree.depth, tree.dirs_only, tree.exclude, tree.include, tree.fence) == (
+            2, True, ("*.pyc",), ("*.py",), False,
+        )
 
 
 class TestCollect:
@@ -220,6 +222,64 @@ class TestExclude:
         assert "main.py" in output
         assert "a.log" not in output
         assert "b.tmp" not in output
+
+
+class TestInclude:
+    """Covers keeping only entries that match an include pattern."""
+
+    def test_keeps_matching_files(self, tmp_path: Path) -> None:
+        """Renders only files whose name matches and the directories leading to them."""
+
+        create_files(tmp_path, ["main.py", "README.md", "src/app.py", "docs/guide.md"])
+        lines = PlainProjectTree(tmp_path, include=["*.py"], fence=False).render().splitlines()
+        assert lines[1:] == ["├── src/", "│   └── app.py", "└── main.py"]
+
+    def test_includes_directory_by_name(self, tmp_path: Path) -> None:
+        """Keeps everything below a directory whose name matches."""
+
+        create_files(tmp_path, ["src/app.py", "src/data.json", "docs/guide.md"])
+        output = PlainProjectTree(tmp_path, include=["src"]).render()
+        assert "app.py" in output
+        assert "data.json" in output
+        assert "guide.md" not in output
+
+    def test_includes_by_relative_path(self, tmp_path: Path) -> None:
+        """Matches the pattern against the relative path."""
+
+        create_files(tmp_path, ["docs/api/index.md", "docs/guide.md"])
+        output = PlainProjectTree(tmp_path, include=["docs/api/*"]).render()
+        assert "index.md" in output
+        assert "guide.md" not in output
+
+    def test_exclude_wins_over_include(self, tmp_path: Path) -> None:
+        """Leaves out included files that also match an exclude pattern."""
+
+        create_files(tmp_path, ["src/app.py", "tests/test_app.py"])
+        output = PlainProjectTree(tmp_path, include=["*.py"], exclude=["tests"]).render()
+        assert "app.py" in output
+        assert "test_app.py" not in output
+
+    def test_combines_multiple_patterns(self, tmp_path: Path) -> None:
+        """Keeps files matching any of the patterns."""
+
+        create_files(tmp_path, ["a.py", "b.md", "c.txt"])
+        output = PlainProjectTree(tmp_path, include=["*.py", "*.md"]).render()
+        assert "a.py" in output
+        assert "b.md" in output
+        assert "c.txt" not in output
+
+    def test_matches_directories_with_dirs_only(self, tmp_path: Path) -> None:
+        """Matches the include patterns against directory names when only directories are rendered."""
+
+        create_files(tmp_path, ["src/core/a.py", "src/gui/b.py", "docs/c.md"])
+        lines = PlainProjectTree(tmp_path, include=["src"], dirs_only=True, fence=False).render().splitlines()
+        assert lines[1:] == ["└── src/", "    ├── core/", "    └── gui/"]
+
+    def test_renders_empty_tree_without_matches(self, tmp_path: Path) -> None:
+        """Renders only the root when no file matches."""
+
+        create_files(tmp_path, ["a.py"])
+        assert PlainProjectTree(tmp_path, include=["*.rs"], fence=False).render() == f"{tmp_path.name}/"
 
 
 class TestFence:

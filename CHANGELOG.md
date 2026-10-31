@@ -3,6 +3,21 @@
 All notable changes to this project are documented in this file.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses [Semantic Versioning](https://semver.org/).
 
+## [0.3.0] - 2026-10-31
+
+### Added
+
+- `-i`/`--include` and the config key `include` to show only entries matching a glob pattern; exclude wins over include
+
+### Changed
+
+- Without a git repository, `--depth` and `--exclude` stop the directory walk early instead of filtering afterward, so `fsg -d 1` on large directories returns immediately
+
+### Security
+
+- GitHub Actions are pinned to commit SHAs, Dependabot opens weekly pull requests to update them
+- The release workflow runs the full CI before building and publishing
+
 ## [0.2.0] - 2026-10-31
 
 ### Changed
@@ -48,6 +63,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 - Configuration via `.fsg.toml` or `[tool.fsg]` in `pyproject.toml`
 - `--version` and `--help`
 
+[0.3.0]: https://github.com/KarnesTH/fsg/releases/tag/v0.3.0
 [0.2.0]: https://github.com/KarnesTH/fsg/releases/tag/v0.2.0
 [0.1.1]: https://github.com/KarnesTH/fsg/releases/tag/v0.1.1
 [0.1.0]: https://github.com/KarnesTH/fsg/releases/tag/v0.1.0

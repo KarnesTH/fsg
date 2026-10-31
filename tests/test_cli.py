@@ -43,13 +43,15 @@ class TestParseArgs:
         """Returns None for every option that can come from the config and no exclusions when no option is given."""
 
         args = parse_args([])
-        assert (args.depth, args.dirs_only, args.exclude, args.fence) == (None, None, [], None)
+        assert (args.depth, args.dirs_only, args.exclude, args.include, args.fence) == (None, None, [], [], None)
 
     def test_reads_render_options(self) -> None:
         """Reads depth, dirs-only, repeated excludes and no-fence."""
 
-        args = parse_args(["-d", "2", "--dirs-only", "-e", "*.log", "--exclude", "tests", "--no-fence"])
-        assert (args.depth, args.dirs_only, args.exclude, args.fence) == (2, True, ["*.log", "tests"], False)
+        args = parse_args(["-d", "2", "--dirs-only", "-e", "*.log", "--exclude", "tests", "-i", "*.py", "--include", "*.md", "--no-fence"])
+        assert (args.depth, args.dirs_only, args.exclude, args.include, args.fence) == (
+            2, True, ["*.log", "tests"], ["*.py", "*.md"], False,
+        )
 
     def test_reads_negated_options(self) -> None:
         """Returns False for options switched off with their --no- form."""
@@ -515,3 +517,29 @@ class TestAsciiOutput:
         assert capsys.readouterr().out == f"[ok] {readme}: tree updated\n"
         assert main(["--ascii", "--check", str(tmp_path / "missing.md"), str(tmp_path)]) == 2
         assert capsys.readouterr().err == f"[error] {tmp_path / 'missing.md'}: file not found\n"
+
+
+class TestInclude:
+    """Covers --include on the command line and in the config."""
+
+    def test_shows_only_included_files(self, tmp_path: Path, capsys) -> None:
+        """Renders only matching files and their directories."""
+
+        create_files(tmp_path, ["main.py", "README.md", "src/app.py", "docs/guide.md"])
+        assert main(["--include", "*.py", "--no-fence", str(tmp_path)]) == 0
+        output = capsys.readouterr().out
+        assert "main.py" in output
+        assert "app.py" in output
+        assert ".md" not in output
+        assert "docs" not in output
+
+    def test_reads_include_from_config(self, tmp_path: Path) -> None:
+        """Applies include patterns from the config in update mode."""
+
+        create_files(tmp_path, ["main.py", "notes.txt"])
+        (tmp_path / ".fsg.toml").write_text('include = ["*.py"]\n', encoding="utf-8")
+        readme = write_markers(tmp_path / "README.md")
+        assert main(["--update", str(readme), str(tmp_path)]) == 0
+        text = readme.read_text(encoding="utf-8")
+        assert "main.py" in text
+        assert "notes.txt" not in text

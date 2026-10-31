@@ -58,6 +58,14 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         help="leave out entries whose name or relative path matches the glob pattern (repeatable)",
     )
     parser.add_argument(
+        "-i",
+        "--include",
+        action="append",
+        default=[],
+        metavar="PATTERN",
+        help="show only entries whose name or relative path matches the glob pattern (repeatable, exclude wins)",
+    )
+    parser.add_argument(
         "--fence",
         action=argparse.BooleanOptionalAction,
         help="wrap the tree in a Markdown code fence (default: on)",

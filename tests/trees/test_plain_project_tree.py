@@ -63,3 +63,93 @@ class TestCollect:
             locked.chmod(0o755)
         assert "__main__.py" in output
         assert "secret.py" not in output
+
+class TestPrunedWalk:
+    """Covers that the walk stops early without changing the rendered tree."""
+
+    @staticmethod
+    def project(root: Path) -> None:
+        """Creates a nested project with files on several levels, an excluded directory and a directory without files.
+
+        Args:
+            root: Directory the project is created in.
+        """
+
+        create_files(
+            root,
+            [
+                "README.md",
+                "src/main.py",
+                "src/pkg/core.py",
+                "src/pkg/deep/deeper/leaf.txt",
+                "docs/guide.md",
+                "docs/api/index.md",
+                "vendor/lib/a.js",
+                "only_dirs/empty/.keep",
+            ],
+        )
+        (root / "hollow" / "inner").mkdir(parents=True)
+
+    @pytest.mark.parametrize(
+        "options",
+        [
+            {"depth": 1},
+            {"depth": 2},
+            {"depth": 2, "dirs_only": True},
+            {"depth": 1, "include": ["*.md"]},
+            {"depth": 2, "include": ["*.txt"]},
+            {"depth": 3, "exclude": ["vendor", "*.md"]},
+            {"depth": 1, "include": ["*.js"], "exclude": ["vendor"]},
+            {"exclude": ["src/pkg"]},
+            {"include": ["docs"], "dirs_only": True},
+        ],
+    )
+    def test_matches_unpruned_result(self, tmp_path: Path, options: dict) -> None:
+        """Renders the same tree as filtering the complete list of paths."""
+
+        self.project(tmp_path)
+        pruned = PlainProjectTree(tmp_path, **options)
+        complete = [parts for parts in self.all_files(tmp_path)]
+        reference = PlainProjectTree(tmp_path, **options)
+        reference.collect = lambda: complete
+        assert pruned.render() == reference.render()
+
+    def test_does_not_enter_directories_below_depth(self, tmp_path: Path, monkeypatch) -> None:
+        """Lists no directory deeper than needed to mark the last rendered level as directory."""
+
+        self.project(tmp_path)
+        visited: list[Path] = []
+        original = PlainProjectTree._children
+
+        def children(directory: Path) -> list[Path]:
+            visited.append(directory)
+            return original(directory)
+
+        monkeypatch.setattr(PlainProjectTree, "_children", staticmethod(children))
+        PlainProjectTree(tmp_path, depth=1).collect()
+        assert tmp_path / "src" / "pkg" / "deep" not in visited
+
+    def test_does_not_enter_excluded_directories(self, tmp_path: Path, monkeypatch) -> None:
+        """Never lists a directory that matches an exclude pattern."""
+
+        self.project(tmp_path)
+        visited: list[Path] = []
+        original = PlainProjectTree._children
+
+        def children(directory: Path) -> list[Path]:
+            visited.append(directory)
+            return original(directory)
+
+        monkeypatch.setattr(PlainProjectTree, "_children", staticmethod(children))
+        PlainProjectTree(tmp_path, exclude=["vendor"]).collect()
+        assert tmp_path / "vendor" not in visited
+
+    @staticmethod
+    def all_files(root: Path) -> list[list[str]]:
+        """Returns the parts of every file below the root, without any filtering.
+
+        Args:
+            root: Directory to list.
+        """
+
+        return [list(path.relative_to(root).parts) for path in root.rglob("*") if path.is_file()]

@@ -19,7 +19,7 @@ class Config:
         """Validates and stores the option values together with the file they were read from.
 
         Args:
-            values: Option table with the keys path, depth, dirs-only, exclude, fence and ascii.
+            values: Option table with the keys path, depth, dirs-only, exclude, include, fence and ascii.
             source: File the values were read from, or None when no config file was found.
 
         Raises:
@@ -31,6 +31,7 @@ class Config:
         self.depth: int | None = None
         self.dirs_only: bool | None = None
         self.exclude: list[str] = []
+        self.include: list[str] = []
         self.fence: bool | None = None
         self.use_ascii: bool | None = None
         for key, value in (values or {}).items():
@@ -89,16 +90,17 @@ class Config:
     def merge(self, args: argparse.Namespace) -> dict[str, Any]:
         """Returns the ProjectTree options, taking each value from the arguments when given, else from the config, else the default.
 
-        Exclude patterns from the config and the arguments are combined.
+        Exclude and include patterns from the config and the arguments are combined.
 
         Args:
-            args: Parsed command line arguments holding depth, dirs_only, exclude, fence and use_ascii.
+            args: Parsed command line arguments holding depth, dirs_only, exclude, include, fence and use_ascii.
         """
 
         return {
             "depth": args.depth if args.depth is not None else self.depth,
             "dirs_only": self._pick(args.dirs_only, self.dirs_only, False),
             "exclude": [*self.exclude, *args.exclude],
+            "include": [*self.include, *args.include],
             "fence": self._pick(args.fence, self.fence, True),
             "use_ascii": self._pick(args.use_ascii, self.use_ascii, False),
         }
@@ -170,9 +172,9 @@ class Config:
             if not isinstance(value, bool):
                 raise ConfigError(f"{self.source}: {key} must be true or false")
             setattr(self, {"dirs-only": "dirs_only", "ascii": "use_ascii"}.get(key, key), value)
-        elif key == "exclude":
+        elif key in ("exclude", "include"):
             if not isinstance(value, list) or not all(isinstance(pattern, str) for pattern in value):
-                raise ConfigError(f"{self.source}: exclude must be a list of strings")
-            self.exclude = list(value)
+                raise ConfigError(f"{self.source}: {key} must be a list of strings")
+            setattr(self, key, list(value))
         else:
             raise ConfigError(f"{self.source}: unknown option '{key}'")

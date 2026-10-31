@@ -15,7 +15,7 @@ def namespace(**overrides: object) -> argparse.Namespace:
         **overrides: Attribute values replacing the defaults.
     """
 
-    values = {"depth": None, "dirs_only": None, "exclude": [], "fence": None, "use_ascii": None}
+    values = {"depth": None, "dirs_only": None, "exclude": [], "include": [], "fence": None, "use_ascii": None}
     values.update(overrides)
     return argparse.Namespace(**values)
 
@@ -165,7 +165,7 @@ class TestMerge:
         """Returns the built-in defaults when nothing is set."""
 
         assert Config().merge(namespace()) == {
-            "depth": None, "dirs_only": False, "exclude": [], "fence": True, "use_ascii": False,
+            "depth": None, "dirs_only": False, "exclude": [], "include": [], "fence": True, "use_ascii": False,
         }
 
     def test_uses_config_values(self) -> None:
@@ -173,7 +173,7 @@ class TestMerge:
 
         config = Config({"depth": 2, "dirs-only": True, "fence": False, "ascii": True})
         assert config.merge(namespace()) == {
-            "depth": 2, "dirs_only": True, "exclude": [], "fence": False, "use_ascii": True,
+            "depth": 2, "dirs_only": True, "exclude": [], "include": [], "fence": False, "use_ascii": True,
         }
 
     def test_arguments_override_config(self) -> None:
@@ -181,7 +181,22 @@ class TestMerge:
 
         config = Config({"depth": 2, "dirs-only": True, "fence": False, "ascii": True})
         merged = config.merge(namespace(depth=4, dirs_only=False, fence=True, use_ascii=False))
-        assert merged == {"depth": 4, "dirs_only": False, "exclude": [], "fence": True, "use_ascii": False}
+        assert merged == {
+            "depth": 4, "dirs_only": False, "exclude": [], "include": [], "fence": True, "use_ascii": False,
+        }
+
+    def test_combines_include_patterns(self) -> None:
+        """Returns the configured include patterns followed by the ones from the arguments."""
+
+        merged = Config({"include": ["*.py"]}).merge(namespace(include=["*.md"]))
+        assert merged["include"] == ["*.py", "*.md"]
+
+    @pytest.mark.parametrize("include", ["*.py", [1], ["*.py", None]])
+    def test_rejects_invalid_include(self, include: object) -> None:
+        """Raises ConfigError when include is not a list of strings."""
+
+        with pytest.raises(ConfigError, match="include"):
+            Config({"include": include})
 
     def test_combines_exclude_patterns(self) -> None:
         """Returns the configured patterns followed by the ones from the arguments."""

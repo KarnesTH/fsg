@@ -1,6 +1,6 @@
 [project]
 name = "fsg"
-version = "0.2.0"
+version = "0.3.0"
 description = "Generates clean directory trees that respect .gitignore and keep your docs up to date."
 readme = "README.md"
 license = "MIT"

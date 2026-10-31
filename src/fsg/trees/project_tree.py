@@ -21,6 +21,7 @@ class ProjectTree(ABC):
         depth: int | None = None,
         dirs_only: bool = False,
         exclude: Iterable[str] = (),
+        include: Iterable[str] = (),
         fence: bool = True,
     ) -> None:
         """Resolves and stores the root directory of the project together with the render options.
@@ -31,6 +32,7 @@ class ProjectTree(ABC):
             depth: Number of levels below the root to render, or None for all levels.
             dirs_only: Renders directories only and leaves out files.
             exclude: Glob patterns matched case-sensitively against every path part and every relative path prefix.
+            include: Glob patterns matched like exclude; when given, only paths matching one of them are kept.
             fence: Wraps the rendered tree in a Markdown code fence.
         """
 
@@ -39,6 +41,7 @@ class ProjectTree(ABC):
         self.depth = depth
         self.dirs_only = dirs_only
         self.exclude = tuple(exclude)
+        self.include = tuple(include)
         self.fence = fence
 
     @classmethod
@@ -68,27 +71,46 @@ class ProjectTree(ABC):
         return f"```plaintext\n{body}\n```" if self.fence else body
 
     def _nodes(self) -> dict[str, dict]:
-        """Turns the collected paths into nested dicts, dropping paths that contain an ignored or excluded part."""
+        """Turns the collected paths into nested dicts, keeping only the paths accepted by the filters."""
 
         tree: dict[str, dict] = {}
         for parts in self.collect():
-            if any(part in IGNORED for part in parts) or self._is_excluded(parts):
+            if not self._accepts(parts):
                 continue
             current = tree
             for part in parts:
                 current = current.setdefault(part, {})
         return tree
 
-    def _is_excluded(self, parts: list[str]) -> bool:
-        """Returns whether any part name or any slash-joined prefix of the parts matches an exclude pattern.
+    def _accepts(self, parts: list[str]) -> bool:
+        """Returns whether a file path passes the filters.
+
+        A path is dropped when a part is in IGNORED or the path matches an exclude pattern. With include patterns,
+        it is kept only when it matches one of them; with dirs_only, only the directory parts are matched against
+        the include patterns.
+
+        Args:
+            parts: Path parts of a file relative to the root.
+        """
+
+        if any(part in IGNORED for part in parts) or self._matches(parts, self.exclude):
+            return False
+        if not self.include:
+            return True
+        return self._matches(parts[:-1] if self.dirs_only else parts, self.include)
+
+    @staticmethod
+    def _matches(parts: list[str], patterns: tuple[str, ...]) -> bool:
+        """Returns whether any part name or any slash-joined prefix of the parts matches one of the patterns.
 
         Args:
             parts: Path parts relative to the root.
+            patterns: Glob patterns, matched case-sensitively.
         """
 
         for index, part in enumerate(parts):
             prefix = "/".join(parts[: index + 1])
-            if any(fnmatchcase(part, pattern) or fnmatchcase(prefix, pattern) for pattern in self.exclude):
+            if any(fnmatchcase(part, pattern) or fnmatchcase(prefix, pattern) for pattern in patterns):
                 return True
         return False
 

@@ -5,7 +5,7 @@
 <h1 align="center">fsg</h1>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/version-0.2.0-blue" alt="Version 0.2.0" />
+  <img src="https://img.shields.io/badge/version-0.3.0-blue" alt="Version 0.3.0" />
   <img src="https://img.shields.io/badge/python-3.11%2B-3776AB?logo=python&logoColor=white" alt="Python 3.11+" />
   <img src="https://img.shields.io/badge/dependencies-none-brightgreen" alt="No dependencies" />
   <img src="https://img.shields.io/badge/license-MIT-green" alt="MIT License" />
@@ -20,7 +20,7 @@
 - Directories first, entries sorted case-insensitively, empty directories omitted
 - Keeps a marked section of your README up to date, with a check mode for CI
 - Sets up the commit hook for you: extends an existing `.pre-commit-config.yaml` or the native git hook, never overwrites
-- Limit the depth, render directories only or exclude entries by glob pattern
+- Limit the depth, render directories only, or include and exclude entries by glob pattern
 - Options can live in `.fsg.toml` or `[tool.fsg]` in `pyproject.toml`
 - Output is wrapped in a `plaintext` code fence (optional) and always written as UTF-8
 - Optional ASCII branches (`|--`, `` `-- ``) for environments without Unicode support
@@ -40,19 +40,20 @@ uvx fsg               # run without installing
 fsg [options] [path]
 ```
 
-| Argument                         | Description                                                                 |
-|----------------------------------|-----------------------------------------------------------------------------|
-| `path`                           | Directory to render (default: current directory)                            |
-| `-d N`, `--depth N`              | Render only the first N levels below the root                               |
-| `--dirs-only`, `--no-dirs-only`  | Render directories only                                                     |
-| `-e`, `--exclude PATTERN`        | Leave out entries whose name or relative path matches the glob (repeatable) |
-| `--fence`, `--no-fence`          | Wrap the tree in a Markdown code fence (default: on)                        |
-| `--ascii`, `--no-ascii`          | Draw the tree with ASCII instead of box-drawing characters                  |
-| `-u`, `--update FILE`            | Write the tree between the fsg markers of FILE                              |
-| `-c`, `--check FILE`             | Exit with status 1 when the tree in FILE is out of date                     |
-| `--setup-hook FILE`              | Run `fsg --update FILE` on every commit                                     |
-| `-h`, `--help`                   | Show the help text and exit                                                 |
-| `-V`, `--version`                | Show the version and exit                                                   |
+| Argument                        | Description                                                                               |
+|---------------------------------|-------------------------------------------------------------------------------------------|
+| `path`                          | Directory to render (default: current directory)                                          |
+| `-d N`, `--depth N`             | Render only the first N levels below the root                                             |
+| `--dirs-only`, `--no-dirs-only` | Render directories only                                                                   |
+| `-e`, `--exclude PATTERN`       | Leave out entries whose name or relative path matches the glob (repeatable)               |
+| `-i`, `--include PATTERN`       | Show only entries whose name or relative path matches the glob (repeatable, exclude wins) |
+| `--fence`, `--no-fence`         | Wrap the tree in a Markdown code fence (default: on)                                      |
+| `--ascii`, `--no-ascii`         | Draw the tree with ASCII instead of box-drawing characters                                |
+| `-u`, `--update FILE`           | Write the tree between the fsg markers of FILE                                            |
+| `-c`, `--check FILE`            | Exit with status 1 when the tree in FILE is out of date                                   |
+| `--setup-hook FILE`             | Run `fsg --update FILE` on every commit                                                   |
+| `-h`, `--help`                  | Show the help text and exit                                                               |
+| `-V`, `--version`               | Show the version and exit                                                                 |
 
 Example:
 
@@ -82,7 +83,7 @@ src/
 
 With `--update` and `--check`, the path and all options not given on the command line are read from `.fsg.toml`
 or the `[tool.fsg]` table in `pyproject.toml`, searched from the directory of the target file upwards.
-`path` is relative to the config file. Command line options take precedence, exclude patterns are combined.
+`path` is relative to the config file. Command line options take precedence, include and exclude patterns are combined.
 Plain `fsg` ignores the config.
 
 ```toml
@@ -91,6 +92,7 @@ path = "src"
 depth = 2
 dirs-only = false
 exclude = ["*.log", "docs/api"]
+include = []
 fence = true
 ascii = false
 ```
@@ -120,7 +122,7 @@ To add the hook by hand:
 ```yaml
 repos:
   - repo: https://github.com/KarnesTH/fsg
-    rev: v0.2.0
+    rev: v0.3.0
     hooks:
       - id: fsg          # updates README.md
       # - id: fsg-check  # only checks, e.g. in CI
