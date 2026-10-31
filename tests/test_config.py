@@ -5,6 +5,7 @@ import pytest
 
 from fsg.config import Config
 from fsg.errors import ConfigError
+from fsg.glyphs import Glyphs
 from tests.conftest import init_repository, requires_git
 
 
@@ -15,7 +16,10 @@ def namespace(**overrides: object) -> argparse.Namespace:
         **overrides: Attribute values replacing the defaults.
     """
 
-    values = {"depth": None, "dirs_only": None, "exclude": [], "include": [], "fence": None, "use_ascii": None}
+    values = {
+        "depth": None, "dirs_only": None, "exclude": [], "include": [], "fence": None, "use_ascii": None,
+        "style": None, "glyph": [], "summary": None,
+    }
     values.update(overrides)
     return argparse.Namespace(**values)
 
@@ -165,24 +169,27 @@ class TestMerge:
         """Returns the built-in defaults when nothing is set."""
 
         assert Config().merge(namespace()) == {
-            "depth": None, "dirs_only": False, "exclude": [], "include": [], "fence": True, "use_ascii": False,
+            "depth": None, "dirs_only": False, "exclude": [], "include": [], "fence": True, "summary": False,
+            "glyphs": Glyphs.from_style("unicode"),
         }
 
     def test_uses_config_values(self) -> None:
         """Returns the configured values when no argument is given."""
 
-        config = Config({"depth": 2, "dirs-only": True, "fence": False, "ascii": True})
+        config = Config({"depth": 2, "dirs-only": True, "fence": False, "ascii": True, "summary": True})
         assert config.merge(namespace()) == {
-            "depth": 2, "dirs_only": True, "exclude": [], "include": [], "fence": False, "use_ascii": True,
+            "depth": 2, "dirs_only": True, "exclude": [], "include": [], "fence": False, "summary": True,
+            "glyphs": Glyphs.from_style("ascii"),
         }
 
     def test_arguments_override_config(self) -> None:
         """Prefers given arguments, including switched-off ones, over the config."""
 
-        config = Config({"depth": 2, "dirs-only": True, "fence": False, "ascii": True})
-        merged = config.merge(namespace(depth=4, dirs_only=False, fence=True, use_ascii=False))
+        config = Config({"depth": 2, "dirs-only": True, "fence": False, "ascii": True, "summary": True})
+        merged = config.merge(namespace(depth=4, dirs_only=False, fence=True, use_ascii=False, summary=False))
         assert merged == {
-            "depth": 4, "dirs_only": False, "exclude": [], "include": [], "fence": True, "use_ascii": False,
+            "depth": 4, "dirs_only": False, "exclude": [], "include": [], "fence": True, "summary": False,
+            "glyphs": Glyphs.from_style("unicode"),
         }
 
     def test_combines_include_patterns(self) -> None:
@@ -240,3 +247,137 @@ class TestSearchBoundary:
         monkeypatch.setenv("HOME", str(tmp_path / "elsewhere"))
         monkeypatch.setenv("USERPROFILE", str(tmp_path / "elsewhere"))
         assert Config.find(nested).source is None
+
+
+class TestStyle:
+    """Covers choosing the style and glyphs from config and arguments."""
+
+    def test_reads_style_and_glyphs(self) -> None:
+        """Builds the glyphs from the configured style with configured overrides."""
+
+        config = Config({"style": "heavy", "glyphs": {"last": "┗━━ "}})
+        assert config.merge(namespace())["glyphs"] == Glyphs.from_style("heavy", {"last": "┗━━ "})
+
+    def test_style_argument_wins(self) -> None:
+        """Prefers --style over the configured style and the ascii switch."""
+
+        config = Config({"style": "heavy", "ascii": True})
+        assert config.merge(namespace(style="double"))["glyphs"] == Glyphs.from_style("double")
+
+    def test_ascii_argument_wins_over_config_style(self) -> None:
+        """Uses the ascii style for --ascii and the unicode style for --no-ascii."""
+
+        config = Config({"style": "heavy"})
+        assert config.merge(namespace(use_ascii=True))["glyphs"] == Glyphs.from_style("ascii")
+        assert config.merge(namespace(use_ascii=False))["glyphs"] == Glyphs.from_style("unicode")
+
+    def test_glyph_argument_overrides_config(self) -> None:
+        """Replaces configured glyphs with --glyph values."""
+
+        config = Config({"glyphs": {"branch": "+-- "}})
+        glyphs = config.merge(namespace(glyph=["branch=*-- "]))["glyphs"]
+        assert glyphs.branch == "*-- "
+
+    def test_rejects_glyph_argument_without_equals(self) -> None:
+        """Raises ConfigError for a --glyph value without key."""
+
+        with pytest.raises(ConfigError, match="key=value"):
+            Config().merge(namespace(glyph=["branch"]))
+
+    @pytest.mark.parametrize(
+        ("values", "match"),
+        [
+            ({"style": 3}, "style must be a string"),
+            ({"glyphs": "x"}, "glyphs must be a table"),
+            ({"glyphs": {"stem": "|   "}}, "unknown glyph 'stem'"),
+            ({"summary": "yes"}, "summary must be true or false"),
+        ],
+    )
+    def test_rejects_invalid_values(self, values: dict, match: str) -> None:
+        """Raises ConfigError for invalid style, glyphs and summary values."""
+
+        with pytest.raises(ConfigError, match=match):
+            Config(values)
+
+
+class TestWithMarker:
+    """Covers applying start marker options on top of the config."""
+
+    def test_applies_options(self, tmp_path: Path) -> None:
+        """Converts the string values of the marker into config values."""
+
+        (tmp_path / "src").mkdir()
+        marker = {"path": "src", "depth": "2", "dirs-only": "true", "fence": "false", "summary": "true", "style": "rounded"}
+        config = Config().with_marker(marker, tmp_path / "README.md", 3)
+        assert (config.path, config.depth, config.dirs_only, config.fence, config.summary, config.style) == (
+            (tmp_path / "src").resolve(), 2, True, False, True, "rounded",
+        )
+
+    def test_adds_patterns_to_config(self, tmp_path: Path) -> None:
+        """Appends comma-separated marker patterns to the configured ones."""
+
+        config = Config({"exclude": ["*.log"]}).with_marker({"exclude": "tests, docs", "include": "*.py"}, tmp_path / "a.md", 1)
+        assert (config.exclude, config.include) == (["*.log", "tests", "docs"], ["*.py"])
+
+    def test_leaves_original_config_unchanged(self, tmp_path: Path) -> None:
+        """Returns a copy and keeps the patterns of the original config."""
+
+        original = Config({"exclude": ["*.log"]})
+        original.with_marker({"exclude": "tests", "depth": "1"}, tmp_path / "a.md", 1)
+        assert (original.exclude, original.depth) == (["*.log"], None)
+
+    def test_marker_overrides_config(self, tmp_path: Path) -> None:
+        """Replaces configured single values with the marker values."""
+
+        config = Config({"depth": 4, "style": "heavy"}).with_marker({"depth": "1", "style": "ascii"}, tmp_path / "a.md", 1)
+        assert (config.depth, config.style) == (1, "ascii")
+
+    def test_arguments_override_marker(self, tmp_path: Path) -> None:
+        """Lets command line arguments win over marker options."""
+
+        config = Config().with_marker({"depth": "1", "summary": "true"}, tmp_path / "a.md", 1)
+        merged = config.merge(namespace(depth=3, summary=False))
+        assert (merged["depth"], merged["summary"]) == (3, False)
+
+    @requires_git
+    def test_allows_path_inside_repository(self, tmp_path: Path) -> None:
+        """Accepts a path leaving the directory of the file as long as it stays in the repository."""
+
+        init_repository(tmp_path)
+        (tmp_path / "docs").mkdir()
+        (tmp_path / "src").mkdir()
+        config = Config().with_marker({"path": "../src"}, tmp_path / "docs" / "a.md", 1)
+        assert config.path == (tmp_path / "src").resolve()
+
+    @requires_git
+    def test_rejects_path_outside_repository(self, tmp_path: Path) -> None:
+        """Raises ConfigError naming file and line when the path leaves the repository."""
+
+        repository = tmp_path / "project"
+        repository.mkdir()
+        init_repository(repository)
+        with pytest.raises(ConfigError, match="a.md:7: path must stay inside"):
+            Config().with_marker({"path": ".."}, repository / "a.md", 7)
+
+    def test_rejects_path_outside_file_directory_without_repository(self, tmp_path: Path) -> None:
+        """Keeps the path inside the directory of the file outside a repository."""
+
+        nested = tmp_path / "docs"
+        nested.mkdir()
+        with pytest.raises(ConfigError, match="must stay inside"):
+            Config().with_marker({"path": "../"}, nested / "a.md", 1)
+
+    @pytest.mark.parametrize(
+        ("options", "match"),
+        [
+            ({"depth": "0"}, "depth must be an integer"),
+            ({"depth": "two"}, "depth must be an integer"),
+            ({"dirs-only": "yes"}, "dirs-only must be true or false"),
+            ({"colour": "red"}, "unknown marker option 'colour'"),
+        ],
+    )
+    def test_rejects_invalid_options(self, tmp_path: Path, options: dict, match: str) -> None:
+        """Raises ConfigError for invalid marker values and unknown keys."""
+
+        with pytest.raises(ConfigError, match=match):
+            Config().with_marker(options, tmp_path / "a.md", 1)

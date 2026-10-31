@@ -3,6 +3,20 @@
 All notable changes to this project are documented in this file.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses [Semantic Versioning](https://semver.org/).
 
+## [0.4.0] - 2026-10-31
+
+### Added
+
+- Comments after an entry (`# ...`, separated by at least two spaces) are kept on `--update` and aligned
+- Several marked blocks per file; options in the start marker (`path`, `depth`, `dirs-only`, `exclude`, `include`, `fence`, `style`, `summary`) apply to one block, between the config and the command line
+- `-s`/`--style` with the built-in styles `unicode`, `ascii`, `rounded`, `heavy` and `double`, plus `--glyph KEY=VALUE` and `[tool.fsg.glyphs]` for own glyphs
+- `--summary`/`--no-summary` and the config key `summary` for a line with the number of directories and files
+- `--copy` to copy the tree to the clipboard with clip.exe, pbcopy, wl-copy, xclip or xsel
+
+### Changed
+
+- A start marker after another one without end marker, and an end marker without start marker, are reported with their line number instead of being skipped
+
 ## [0.3.0] - 2026-10-31
 
 ### Added
@@ -63,6 +77,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 - Configuration via `.fsg.toml` or `[tool.fsg]` in `pyproject.toml`
 - `--version` and `--help`
 
+[0.4.0]: https://github.com/KarnesTH/fsg/releases/tag/v0.4.0
 [0.3.0]: https://github.com/KarnesTH/fsg/releases/tag/v0.3.0
 [0.2.0]: https://github.com/KarnesTH/fsg/releases/tag/v0.2.0
 [0.1.1]: https://github.com/KarnesTH/fsg/releases/tag/v0.1.1

@@ -5,8 +5,8 @@ import pytest
 
 import fsg
 from fsg.cli import main, parse_args
-from fsg.errors import GitError
-from fsg.readme_section import END_MARKER, START_MARKER
+from fsg.errors import ClipboardError, GitError
+from fsg.marked_file import END_MARKER, START_MARKER
 from tests.conftest import create_files, init_repository, requires_git
 
 
@@ -121,7 +121,7 @@ class TestMain:
         missing = tmp_path / "missing"
         assert main([str(missing)]) == 2
         assert capsys.readouterr().err == (
-            f"✖ {missing}: not a directory\n  hint: pass an existing directory or set path in the config\n"
+            f"✖ {missing}: not a directory\n  hint: pass an existing directory or set path in the config or marker\n"
         )
 
     def test_reports_file_instead_of_directory(self, tmp_path: Path, capsys) -> None:
@@ -543,3 +543,160 @@ class TestInclude:
         text = readme.read_text(encoding="utf-8")
         assert "main.py" in text
         assert "notes.txt" not in text
+
+
+class TestStyles:
+    """Covers --style, --glyph and --summary."""
+
+    def test_renders_style(self, tmp_path: Path, capsys) -> None:
+        """Draws the tree with the chosen style."""
+
+        create_files(tmp_path, ["a.py"])
+        assert main(["--style", "heavy", "--no-fence", str(tmp_path)]) == 0
+        assert "┗━━ a.py" in capsys.readouterr().out
+
+    def test_rejects_unknown_style(self, capsys) -> None:
+        """Exits with status 2 for a style that does not exist."""
+
+        with pytest.raises(SystemExit) as exit_info:
+            parse_args(["--style", "fancy"])
+        assert exit_info.value.code == 2
+
+    def test_applies_glyphs(self, tmp_path: Path, capsys) -> None:
+        """Replaces single glyphs given with --glyph."""
+
+        create_files(tmp_path, ["a.py"])
+        assert main(["--glyph", "last=*-- ", "--no-fence", str(tmp_path)]) == 0
+        assert "*-- a.py" in capsys.readouterr().out
+
+    def test_reports_unequal_glyphs(self, tmp_path: Path, capsys) -> None:
+        """Returns 2 with a hint when the glyphs differ in width."""
+
+        assert main(["--glyph", "last=*", str(tmp_path)]) == 2
+        assert "same width" in capsys.readouterr().err
+
+    def test_prints_summary(self, tmp_path: Path, capsys) -> None:
+        """Adds the summary line with --summary."""
+
+        create_files(tmp_path, ["a.py"])
+        assert main(["--summary", "--no-fence", str(tmp_path)]) == 0
+        assert capsys.readouterr().out.endswith("0 directories, 1 file\n")
+
+
+class TestCopy:
+    """Covers copying the tree to the clipboard."""
+
+    def test_copies_instead_of_printing(self, tmp_path: Path, capsys, monkeypatch) -> None:
+        """Hands the rendered tree to the clipboard and reports it."""
+
+        copied: list[str] = []
+        monkeypatch.setattr("fsg.cli.Clipboard.copy", lambda self, text: copied.append(text))
+        create_files(tmp_path, ["a.py"])
+        assert main(["--copy", str(tmp_path)]) == 0
+        assert copied[0].startswith("```plaintext\n")
+        assert capsys.readouterr().out == "✔ tree copied to clipboard\n"
+
+    def test_reports_clipboard_error(self, tmp_path: Path, capsys, monkeypatch) -> None:
+        """Returns 2 and shows the clipboard error."""
+
+        def fail(self, text: str) -> None:
+            raise ClipboardError("no clipboard tool found", "install xclip")
+
+        monkeypatch.setattr("fsg.cli.Clipboard.copy", fail)
+        assert main(["--copy", str(tmp_path)]) == 2
+        assert capsys.readouterr().err == "✖ no clipboard tool found\n  hint: install xclip\n"
+
+    @pytest.mark.parametrize("mode", ["--update", "--check", "--setup-hook"])
+    def test_rejects_copy_with_mode(self, mode: str) -> None:
+        """Exits with status 2 when --copy is combined with a mode."""
+
+        with pytest.raises(SystemExit) as exit_info:
+            parse_args(["--copy", mode, "README.md"])
+        assert exit_info.value.code == 2
+
+
+class TestSections:
+    """Covers several marked blocks with options and kept comments."""
+
+    def test_updates_every_section_with_its_options(self, tmp_path: Path, capsys) -> None:
+        """Renders each block with the path and options of its start marker."""
+
+        create_files(tmp_path, ["src/a.py", "docs/guide.md"])
+        readme = tmp_path / "README.md"
+        readme.write_text(
+            "<!-- fsg:start path=src no-op -->\n<!-- fsg:end -->\n".replace(" no-op", "")
+            + "<!-- fsg:start path=docs fence=false -->\n<!-- fsg:end -->\n",
+            encoding="utf-8",
+        )
+        assert main(["--update", str(readme)]) == 0
+        text = readme.read_text(encoding="utf-8")
+        assert "```plaintext\nsrc/\n└── a.py\n```" in text
+        assert "-->\ndocs/\n└── guide.md\n<!--" in text
+        assert capsys.readouterr().out == f"✔ {readme}: 2 of 2 trees updated\n"
+
+    def test_checks_every_section(self, tmp_path: Path, capsys) -> None:
+        """Reports how many blocks are out of date."""
+
+        create_files(tmp_path, ["src/a.py", "docs/guide.md"])
+        readme = tmp_path / "README.md"
+        readme.write_text(
+            "<!-- fsg:start path=src -->\n<!-- fsg:end -->\n<!-- fsg:start path=docs -->\n<!-- fsg:end -->\n",
+            encoding="utf-8",
+        )
+        main(["--update", str(readme)])
+        create_files(tmp_path, ["docs/new.md"])
+        capsys.readouterr()
+        assert main(["--check", str(readme)]) == 1
+        assert capsys.readouterr().err.startswith(f"✖ {readme}: 1 of 2 trees are out of date\n")
+
+    def test_keeps_comments_on_update(self, tmp_path: Path) -> None:
+        """Re-attaches existing comments and aligns them when a new file appears."""
+
+        create_files(tmp_path, ["src/cli.py"])
+        readme = tmp_path / "README.md"
+        readme.write_text(
+            "<!-- fsg:start path=src fence=false -->\nsrc/\n└── cli.py  # entry point\n<!-- fsg:end -->\n",
+            encoding="utf-8",
+        )
+        create_files(tmp_path, ["src/configuration.py"])
+        assert main(["--update", str(readme)]) == 0
+        assert readme.read_text(encoding="utf-8") == (
+            "<!-- fsg:start path=src fence=false -->\n"
+            "src/\n"
+            "├── cli.py  # entry point\n"
+            "└── configuration.py\n"
+            "<!-- fsg:end -->\n"
+        )
+
+    def test_check_accepts_commented_tree(self, tmp_path: Path) -> None:
+        """Treats a tree with aligned comments as up to date and misaligned ones as out of date."""
+
+        create_files(tmp_path, ["src/cli.py"])
+        readme = tmp_path / "README.md"
+        readme.write_text(
+            "<!-- fsg:start path=src fence=false -->\nsrc/        # code\n└── cli.py  # entry\n<!-- fsg:end -->\n",
+            encoding="utf-8",
+        )
+        assert main(["--check", str(readme)]) == 0
+        readme.write_text(
+            "<!-- fsg:start path=src fence=false -->\nsrc/  # code\n└── cli.py  # entry\n<!-- fsg:end -->\n",
+            encoding="utf-8",
+        )
+        assert main(["--check", str(readme)]) == 1
+
+    def test_command_line_wins_over_marker(self, tmp_path: Path) -> None:
+        """Uses --depth from the command line instead of the marker value."""
+
+        create_files(tmp_path, ["src/gui/a.py"])
+        readme = tmp_path / "README.md"
+        readme.write_text("<!-- fsg:start path=src depth=1 fence=false -->\n<!-- fsg:end -->\n", encoding="utf-8")
+        main(["--update", str(readme), "--depth", "2"])
+        assert "a.py" in readme.read_text(encoding="utf-8")
+
+    def test_reports_invalid_marker_option(self, tmp_path: Path, capsys) -> None:
+        """Returns 2 and names file and line of the faulty marker."""
+
+        readme = tmp_path / "README.md"
+        readme.write_text("text\n<!-- fsg:start colour=red -->\n<!-- fsg:end -->\n", encoding="utf-8")
+        assert main(["--check", str(readme), str(tmp_path)]) == 2
+        assert f"{readme}:2: unknown marker option 'colour'" in capsys.readouterr().err

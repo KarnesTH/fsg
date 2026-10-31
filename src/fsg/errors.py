@@ -36,3 +36,7 @@ class GitError(FsgError):
 
 class HookError(FsgError):
     """Raised when the commit hook cannot be set up."""
+
+
+class ClipboardError(FsgError):
+    """Raised when no clipboard tool is available or copying fails."""

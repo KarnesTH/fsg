@@ -2,7 +2,7 @@ from pathlib import Path
 
 import pytest
 
-from fsg.constants import ASCII_GLYPHS
+from fsg.glyphs import Glyphs
 from fsg.trees import GitProjectTree, PlainProjectTree, ProjectTree
 from tests.conftest import create_files, init_repository, requires_git
 
@@ -34,7 +34,7 @@ class TestForPath:
     def test_passes_ascii_option(self, tmp_path: Path) -> None:
         """Hands the ASCII option over to the selected implementation."""
 
-        assert ProjectTree.for_path(tmp_path, use_ascii=True).glyphs == ASCII_GLYPHS
+        assert ProjectTree.for_path(tmp_path, glyphs=Glyphs.from_style("ascii")).glyphs == Glyphs.from_style("ascii")
 
     def test_passes_render_options(self, tmp_path: Path) -> None:
         """Hands depth, dirs_only, exclude and fence over to the selected implementation."""
@@ -123,10 +123,10 @@ class TestRender:
         monkeypatch.chdir(tmp_path)
         assert PlainProjectTree(Path(".")).render().splitlines()[1] == f"{tmp_path.name}/"
     def test_renders_ascii_connectors(self, tmp_path: Path) -> None:
-        """Draws branches, last entries and pipes with ASCII characters when use_ascii is set."""
+        """Draws branches, last entries and pipes with the ASCII glyphs."""
 
         create_files(tmp_path, ["src/gui/window.py", "README.md"])
-        lines = PlainProjectTree(tmp_path, use_ascii=True).render().splitlines()
+        lines = PlainProjectTree(tmp_path, glyphs=Glyphs.from_style("ascii")).render().splitlines()
         assert lines[2:6] == [
             "|-- src/",
             "|   `-- gui/",
@@ -290,3 +290,61 @@ class TestFence:
 
         create_files(tmp_path, ["main.py"])
         assert PlainProjectTree(tmp_path, fence=False).render() == f"{tmp_path.name}/\n└── main.py"
+
+class TestSummary:
+    """Covers the line counting directories and files."""
+
+    def test_counts_rendered_entries(self, tmp_path: Path) -> None:
+        """Counts the rendered directories and files below the root."""
+
+        create_files(tmp_path, ["a.py", "src/b.py", "src/gui/c.py"])
+        lines = PlainProjectTree(tmp_path, summary=True, fence=False).render().splitlines()
+        assert lines[-2:] == ["", "2 directories, 3 files"]
+
+    def test_uses_singular_nouns(self, tmp_path: Path) -> None:
+        """Writes directory and file for counts of one."""
+
+        create_files(tmp_path, ["src/a.py"])
+        assert PlainProjectTree(tmp_path, summary=True, fence=False).render().endswith("1 directory, 1 file")
+
+    def test_counts_only_shown_levels(self, tmp_path: Path) -> None:
+        """Leaves out entries below the depth limit."""
+
+        create_files(tmp_path, ["src/gui/c.py", "a.py"])
+        assert PlainProjectTree(tmp_path, summary=True, depth=1, fence=False).render().endswith("1 directory, 1 file")
+
+    def test_stays_inside_fence(self, tmp_path: Path) -> None:
+        """Places the summary before the closing fence."""
+
+        create_files(tmp_path, ["a.py"])
+        assert PlainProjectTree(tmp_path, summary=True).render().endswith("0 directories, 1 file\n```")
+
+
+class TestComments:
+    """Covers attaching comments to rendered lines."""
+
+    def test_aligns_comments(self, tmp_path: Path) -> None:
+        """Appends the comments two columns after the longest commented line."""
+
+        create_files(tmp_path, ["src/cli.py", "README.md"])
+        output = PlainProjectTree(tmp_path, fence=False).render({"": "root", "src/cli.py": "entry", "README.md": "docs"})
+        column = max(len(f"{tmp_path.name}/"), len("│   └── cli.py"), len("└── README.md")) + 2
+        assert output.splitlines() == [
+            f"{tmp_path.name}/".ljust(column) + "# root",
+            "├── src/",
+            "│   └── cli.py".ljust(column) + "# entry",
+            "└── README.md".ljust(column) + "# docs",
+        ]
+
+    def test_ignores_comments_of_missing_paths(self, tmp_path: Path) -> None:
+        """Drops comments whose path is no longer rendered."""
+
+        create_files(tmp_path, ["a.py"])
+        assert "#" not in PlainProjectTree(tmp_path, fence=False).render({"gone.py": "old"})
+
+    def test_aligns_by_display_width(self, tmp_path: Path) -> None:
+        """Measures lines in terminal columns, so box drawing characters count once."""
+
+        create_files(tmp_path, ["ab.py", "c.py"])
+        lines = PlainProjectTree(tmp_path, fence=False).render({"ab.py": "x", "c.py": "y"}).splitlines()
+        assert lines[1].index("#") == lines[2].index("#")

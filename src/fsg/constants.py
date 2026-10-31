@@ -1,5 +1,10 @@
-UNICODE_GLYPHS = {"branch": "├── ", "last": "└── ", "pipe": "│   ", "space": "    "}
-ASCII_GLYPHS = {"branch": "|-- ", "last": "`-- ", "pipe": "|   ", "space": "    "}
+STYLES = {
+    "unicode": {"branch": "├── ", "last": "└── ", "pipe": "│   ", "space": "    "},
+    "ascii": {"branch": "|-- ", "last": "`-- ", "pipe": "|   ", "space": "    "},
+    "rounded": {"branch": "├── ", "last": "╰── ", "pipe": "│   ", "space": "    "},
+    "heavy": {"branch": "┣━━ ", "last": "┗━━ ", "pipe": "┃   ", "space": "    "},
+    "double": {"branch": "╠══ ", "last": "╚══ ", "pipe": "║   ", "space": "    "},
+}
 
 IGNORED = {
     ".git", ".svn", ".hg",

@@ -1,11 +1,10 @@
 from __future__ import annotations
 
-import os
 import subprocess
-from functools import cache
 from pathlib import Path
 
 from fsg.errors import GitError
+from fsg.executable import Executable
 
 
 class Git:
@@ -20,28 +19,6 @@ class Git:
 
         self.directory = Path(directory)
 
-    @staticmethod
-    @cache
-    def executable() -> str | None:
-        """Returns the absolute path of the first git executable in the absolute PATH entries, or None.
-
-        Relative entries and the current directory are skipped. On Windows every extension listed in PATHEXT is tried.
-        """
-
-        names = ["git"]
-        if os.name == "nt":
-            extensions = os.environ.get("PATHEXT", ".COM;.EXE;.BAT;.CMD").split(os.pathsep)
-            names = [f"git{extension.lower()}" for extension in extensions if extension]
-        for entry in os.environ.get("PATH", "").split(os.pathsep):
-            directory = Path(entry)
-            if not entry or not directory.is_absolute():
-                continue
-            for name in names:
-                candidate = directory / name
-                if candidate.is_file() and os.access(candidate, os.X_OK):
-                    return str(candidate)
-        return None
-
     def run(self, *args: str) -> subprocess.CompletedProcess[str]:
         """Runs git with the arguments and returns the completed process without checking the exit status.
 
@@ -52,7 +29,7 @@ class Git:
             GitError: git is not installed or cannot be started in the directory.
         """
 
-        executable = self.executable()
+        executable = Executable.find("git")
         if executable is None:
             raise GitError("git is not installed or not on PATH", "install git or add it to PATH")
         try:
@@ -101,7 +78,7 @@ class Git:
         return [entry for entry in listed.split("\0") if entry and entry not in deleted]
 
     def hooks_dir(self) -> Path:
-        """Returns the absolute hooks directory of the repository, honoring core.hooksPath.
+        """Returns the absolute hooks directory of the repository, honouring core.hooksPath.
 
         Raises:
             GitError: git cannot run or the command fails.

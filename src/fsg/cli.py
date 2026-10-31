@@ -4,12 +4,15 @@ import sys
 from pathlib import Path
 
 import fsg
+from fsg.clipboard import Clipboard
 from fsg.config import Config
 from fsg.console import Console
+from fsg.constants import STYLES
 from fsg.errors import FsgError, HookError, PathError
 from fsg.git import Git
 from fsg.hooks import GitHook, Hook
-from fsg.readme_section import ReadmeSection
+from fsg.marked_file import MarkedFile
+from fsg.tree_comments import TreeComments
 from fsg.trees import ProjectTree
 
 
@@ -17,7 +20,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     """Parses the command line arguments and returns the resulting namespace.
 
     Boolean options are None when not given.
-    Exits with status 2 when --depth is smaller than 1.
+    Exits with status 2 when --depth is smaller than 1 or --copy is combined with a mode.
 
     Args:
         argv: Argument list to parse instead of the command line arguments.
@@ -27,8 +30,9 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         prog="fsg",
         description="Generates clean directory trees that respect .gitignore and keep your docs up to date.",
         epilog=(
-            "With --update or --check, the path and options not given on the command line are read from "
-            ".fsg.toml or [tool.fsg] in pyproject.toml, searched from the directory of FILE upwards."
+            "With --update or --check, the path and options not given on the command line are read from the start "
+            "marker of each block, then from .fsg.toml or [tool.fsg] in pyproject.toml, searched from the directory "
+            "of FILE upwards."
         ),
     )
     parser.add_argument(
@@ -71,10 +75,33 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         help="wrap the tree in a Markdown code fence (default: on)",
     )
     parser.add_argument(
+        "--summary",
+        action=argparse.BooleanOptionalAction,
+        help="add a line with the number of directories and files (default: off)",
+    )
+    parser.add_argument(
+        "-s",
+        "--style",
+        choices=list(STYLES),
+        help="draw the tree in a built-in style (default: unicode)",
+    )
+    parser.add_argument(
+        "--glyph",
+        action="append",
+        default=[],
+        metavar="KEY=VALUE",
+        help="replace one glyph of the style: branch, last, pipe or space (repeatable)",
+    )
+    parser.add_argument(
         "--ascii",
         action=argparse.BooleanOptionalAction,
         dest="use_ascii",
-        help="draw the tree with ASCII characters instead of box-drawing characters",
+        help="short for --style ascii; also uses ASCII status symbols",
+    )
+    parser.add_argument(
+        "--copy",
+        action="store_true",
+        help="copy the tree to the clipboard instead of printing it",
     )
     mode = parser.add_mutually_exclusive_group()
     mode.add_argument(
@@ -106,6 +133,8 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     args = parser.parse_args(argv)
     if args.depth is not None and args.depth < 1:
         parser.error("--depth must be at least 1")
+    if args.copy and (args.update or args.check or args.setup_hook):
+        parser.error("--copy cannot be combined with --update, --check or --setup-hook")
     return args
 
 
@@ -125,7 +154,7 @@ def main(argv: list[str] | None = None) -> int:
     for stream in (sys.stdout, sys.stderr):
         if isinstance(stream, io.TextIOWrapper):
             stream.reconfigure(encoding="utf-8")
-    console = Console(use_ascii=bool(args.use_ascii))
+    console = Console(use_ascii=bool(args.use_ascii) or args.style == "ascii")
     try:
         if args.setup_hook:
             return _setup_hook(console, args.setup_hook)
@@ -136,37 +165,65 @@ def main(argv: list[str] | None = None) -> int:
 
 
 def _render(console: Console, args: argparse.Namespace) -> int:
-    """Renders the tree and prints it, or compares or writes it in the marked section of the target file.
+    """Renders the tree and prints or copies it, or compares or writes the trees of every marked block of the target file.
 
     Args:
         console: Console the result is reported on.
         args: Parsed command line arguments.
 
     Raises:
-        FsgError: The config, the directory, git or the target file fails.
+        FsgError: The config, a directory, git, the clipboard or the target file fails.
     """
 
     target = args.update or args.check
-    config = Config.find(target.resolve().parent) if target is not None else Config()
+    if target is None:
+        output = _tree(Config(), args).render()
+        if args.copy:
+            Clipboard().copy(output)
+            console.success("tree copied to clipboard")
+        else:
+            console.output(output)
+        return 0
+    marked = MarkedFile(target)
+    config = Config.find(target.resolve().parent)
+    trees = []
+    for index, section in enumerate(marked.sections):
+        tree = _tree(config.with_marker(section.options, target, section.line), args)
+        comments = TreeComments(tree.glyphs.characters()).parse(marked.content(index))
+        trees.append(tree.render(comments))
+    count = len(trees)
+    noun = "tree" if count == 1 else f"{count} trees"
+    if args.check:
+        outdated = sum(1 for index, tree in enumerate(trees) if not marked.is_current(tree, index))
+        if not outdated:
+            console.success(f"{target}: {noun} {'is' if count == 1 else 'are'} up to date")
+            return 0
+        detail = "tree is" if count == 1 else f"{outdated} of {count} trees are"
+        console.failure(f"{target}: {detail} out of date", f"run fsg --update {target}")
+        return 1
+    changed = marked.update(trees)
+    if changed:
+        console.success(f"{target}: {'tree' if count == 1 else f'{changed} of {count} trees'} updated")
+    else:
+        console.info(f"{target}: {noun} already up to date")
+    return 0
+
+
+def _tree(config: Config, args: argparse.Namespace) -> ProjectTree:
+    """Returns the tree for the directory and options chosen by the arguments, falling back to the config.
+
+    Args:
+        config: Config, possibly with marker options applied.
+        args: Parsed command line arguments.
+
+    Raises:
+        FsgError: The directory does not exist or the options are invalid.
+    """
+
     root = args.path or config.path or Path(".")
     if not root.is_dir():
-        raise PathError(f"{root}: not a directory", "pass an existing directory or set path in the config")
-    output = ProjectTree.for_path(root, **config.merge(args)).render()
-    if target is None:
-        console.output(output)
-        return 0
-    section = ReadmeSection(target)
-    if args.check:
-        if section.is_current(output):
-            console.success(f"{target}: tree is up to date")
-            return 0
-        console.failure(f"{target}: tree is out of date", f"run fsg --update {target}")
-        return 1
-    if section.update(output):
-        console.success(f"{target}: tree updated")
-    else:
-        console.info(f"{target}: tree already up to date")
-    return 0
+        raise PathError(f"{root}: not a directory", "pass an existing directory or set path in the config or marker")
+    return ProjectTree.for_path(root, **config.merge(args))
 
 
 def _setup_hook(console: Console, target: Path) -> int:
@@ -185,7 +242,7 @@ def _setup_hook(console: Console, target: Path) -> int:
     repository = Git(Path.cwd()).toplevel()
     if repository is None:
         raise HookError("not inside a git repository", "run fsg --setup-hook inside your project")
-    ReadmeSection(target)
+    MarkedFile(target)
     root = repository.resolve()
     resolved = target.resolve()
     if not resolved.is_relative_to(root):

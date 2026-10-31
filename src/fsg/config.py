@@ -1,12 +1,14 @@
 from __future__ import annotations
 
 import argparse
+import copy
 import tomllib
 from pathlib import Path
 from typing import Any
 
 from fsg.errors import ConfigError
 from fsg.git import Git
+from fsg.glyphs import KEYS, Glyphs
 
 CONFIG_FILE = ".fsg.toml"
 PYPROJECT_FILE = "pyproject.toml"
@@ -19,7 +21,8 @@ class Config:
         """Validates and stores the option values together with the file they were read from.
 
         Args:
-            values: Option table with the keys path, depth, dirs-only, exclude, include, fence and ascii.
+            values: Option table with the keys path, depth, dirs-only, exclude, include, fence, ascii, style,
+                glyphs and summary.
             source: File the values were read from, or None when no config file was found.
 
         Raises:
@@ -34,6 +37,9 @@ class Config:
         self.include: list[str] = []
         self.fence: bool | None = None
         self.use_ascii: bool | None = None
+        self.style: str | None = None
+        self.glyphs: dict[str, str] = {}
+        self.summary: bool | None = None
         for key, value in (values or {}).items():
             self._set(key, value)
 
@@ -87,13 +93,67 @@ class Config:
             directories.append(parent)
         return directories
 
+    def with_marker(self, options: dict[str, str], file: Path, line: int) -> Config:
+        """Returns a copy of the config with the options of a start marker applied on top.
+
+        Values are given as strings: depth as number, switches as true or false, exclude and include as
+        comma-separated patterns that are added to the configured ones. A path is resolved against the directory
+        of the file and must stay inside its git working tree, or inside that directory outside a repository.
+
+        Args:
+            options: Marker options as key-value strings.
+            file: File holding the marker.
+            line: Line number of the start marker.
+
+        Raises:
+            ConfigError: An option is unknown, has an invalid value or the path leaves the allowed directory.
+        """
+
+        location = f"{file}:{line}"
+        config = copy.copy(self)
+        config.exclude = list(self.exclude)
+        config.include = list(self.include)
+        config.glyphs = dict(self.glyphs)
+        for key, value in options.items():
+            if key == "path":
+                base = file.resolve().parent
+                boundary = (Git(base).toplevel() or base).resolve()
+                path = (base / value).resolve()
+                if not path.is_relative_to(boundary):
+                    raise ConfigError(f"{location}: path must stay inside {boundary}", "use a path inside the project")
+                config.path = path
+            elif key == "depth":
+                if not value.isdigit() or int(value) < 1:
+                    raise ConfigError(f"{location}: depth must be an integer of at least 1")
+                config.depth = int(value)
+            elif key in ("dirs-only", "fence", "summary"):
+                if value.lower() not in ("true", "false"):
+                    raise ConfigError(f"{location}: {key} must be true or false")
+                setattr(config, key.replace("-", "_"), value.lower() == "true")
+            elif key in ("exclude", "include"):
+                getattr(config, key).extend(pattern.strip() for pattern in value.split(",") if pattern.strip())
+            elif key == "style":
+                config.style = value
+            else:
+                raise ConfigError(
+                    f"{location}: unknown marker option '{key}'",
+                    "use path, depth, dirs-only, exclude, include, fence, style or summary",
+                )
+        return config
+
     def merge(self, args: argparse.Namespace) -> dict[str, Any]:
         """Returns the ProjectTree options, taking each value from the arguments when given, else from the config, else the default.
 
-        Exclude and include patterns from the config and the arguments are combined.
+        Exclude and include patterns from the config and the arguments are combined. The style comes from --style,
+        then --ascii/--no-ascii, then the configured style or ascii switch, defaulting to unicode; glyph overrides
+        from --glyph replace those from the config.
 
         Args:
-            args: Parsed command line arguments holding depth, dirs_only, exclude, include, fence and use_ascii.
+            args: Parsed command line arguments holding depth, dirs_only, exclude, include, fence, use_ascii, style,
+                glyph and summary.
+
+        Raises:
+            ConfigError: The style, a glyph override or the resulting glyph widths are invalid.
         """
 
         return {
@@ -102,8 +162,43 @@ class Config:
             "exclude": [*self.exclude, *args.exclude],
             "include": [*self.include, *args.include],
             "fence": self._pick(args.fence, self.fence, True),
-            "use_ascii": self._pick(args.use_ascii, self.use_ascii, False),
+            "summary": self._pick(args.summary, self.summary, False),
+            "glyphs": Glyphs.from_style(self.resolve_style(args), {**self.glyphs, **self._glyph_arguments(args.glyph)}),
         }
+
+    def resolve_style(self, args: argparse.Namespace) -> str:
+        """Returns the style name chosen by --style, --ascii/--no-ascii, the configured style or ascii switch, or unicode.
+
+        Args:
+            args: Parsed command line arguments holding style and use_ascii.
+        """
+
+        if args.style:
+            return args.style
+        if args.use_ascii is not None:
+            return "ascii" if args.use_ascii else "unicode"
+        if self.style:
+            return self.style
+        return "ascii" if self.use_ascii else "unicode"
+
+    @staticmethod
+    def _glyph_arguments(values: list[str]) -> dict[str, str]:
+        """Returns the --glyph arguments as mapping of glyph key to string.
+
+        Args:
+            values: Arguments in the form key=value.
+
+        Raises:
+            ConfigError: An argument has no equals sign.
+        """
+
+        glyphs = {}
+        for value in values:
+            key, separator, glyph = value.partition("=")
+            if not separator:
+                raise ConfigError(f"--glyph {value}: expected key=value", 'e.g. --glyph branch="+-- "')
+            glyphs[key.strip()] = glyph
+        return glyphs
 
     @staticmethod
     def _pick(argument: bool | None, configured: bool | None, default: bool) -> bool:
@@ -168,10 +263,21 @@ class Config:
             if not isinstance(value, int) or isinstance(value, bool) or value < 1:
                 raise ConfigError(f"{self.source}: depth must be an integer of at least 1")
             self.depth = value
-        elif key in ("dirs-only", "fence", "ascii"):
+        elif key in ("dirs-only", "fence", "ascii", "summary"):
             if not isinstance(value, bool):
                 raise ConfigError(f"{self.source}: {key} must be true or false")
             setattr(self, {"dirs-only": "dirs_only", "ascii": "use_ascii"}.get(key, key), value)
+        elif key == "style":
+            if not isinstance(value, str):
+                raise ConfigError(f"{self.source}: style must be a string")
+            self.style = value
+        elif key == "glyphs":
+            if not isinstance(value, dict) or not all(isinstance(glyph, str) for glyph in value.values()):
+                raise ConfigError(f"{self.source}: glyphs must be a table of strings")
+            unknown = set(value) - set(KEYS)
+            if unknown:
+                raise ConfigError(f"{self.source}: unknown glyph '{min(unknown)}'", f"use one of: {', '.join(KEYS)}")
+            self.glyphs = dict(value)
         elif key in ("exclude", "include"):
             if not isinstance(value, list) or not all(isinstance(pattern, str) for pattern in value):
                 raise ConfigError(f"{self.source}: {key} must be a list of strings")
