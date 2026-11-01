@@ -1,19 +1,48 @@
 import argparse
 import io
 import sys
+import webbrowser
 from pathlib import Path
 
 import fsg
 from fsg.clipboard import Clipboard
 from fsg.config import Config
 from fsg.console import Console
-from fsg.constants import STYLES
+from fsg.constants import DOCS_URL, STYLES
 from fsg.errors import FsgError, HookError, PathError
 from fsg.git import Git
 from fsg.hooks import GitHook, Hook
 from fsg.marked_file import MarkedFile
 from fsg.tree_comments import TreeComments
 from fsg.trees import ProjectTree
+
+
+class DocsAction(argparse.Action):
+    """Opens the documentation in the browser and exits, like the version action."""
+
+    def __init__(self, option_strings: list[str], dest: str, help: str | None = None) -> None:
+        """Registers the option without a value.
+
+        Args:
+            option_strings: Option names, e.g. ["--docs"].
+            dest: Attribute name, unused because the action exits.
+            help: Help text of the option.
+        """
+
+        super().__init__(option_strings, dest, nargs=0, default=argparse.SUPPRESS, help=help)
+
+    def __call__(self, parser: argparse.ArgumentParser, namespace: argparse.Namespace, values: object, option_string: str | None = None) -> None:
+        """Opens the documentation URL and exits with status 0.
+
+        Args:
+            parser: Parser the action belongs to.
+            namespace: Namespace parsed so far.
+            values: Empty, the option takes no value.
+            option_string: Option name used on the command line.
+        """
+
+        _open_docs(Console())
+        parser.exit()
 
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
@@ -130,6 +159,11 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         action="version",
         version=f"%(prog)s {fsg.__version__}",
     )
+    parser.add_argument(
+        "--docs",
+        action=DocsAction,
+        help="open the documentation in the browser and exit",
+    )
     args = parser.parse_args(argv)
     if args.depth is not None and args.depth < 1:
         parser.error("--depth must be at least 1")
@@ -150,10 +184,10 @@ def main(argv: list[str] | None = None) -> int:
         argv: Argument list to use instead of the command line arguments.
     """
 
-    args = parse_args(argv)
     for stream in (sys.stdout, sys.stderr):
         if isinstance(stream, io.TextIOWrapper):
             stream.reconfigure(encoding="utf-8")
+    args = parse_args(argv)
     console = Console(use_ascii=bool(args.use_ascii) or args.style == "ascii")
     try:
         if args.setup_hook:
@@ -259,3 +293,20 @@ def _setup_hook(console: Console, target: Path) -> int:
     else:
         console.success(f"{shown}: fsg hook added", "run pre-commit install if not done yet")
     return 0
+
+
+def _open_docs(console: Console) -> None:
+    """Opens the documentation URL in the default browser and prints it, with a hint when no browser is available.
+
+    Args:
+        console: Console the URL is reported on.
+    """
+
+    try:
+        opened = webbrowser.open(DOCS_URL)
+    except webbrowser.Error:
+        opened = False
+    if opened:
+        console.info(f"opening {DOCS_URL}")
+    else:
+        console.info(DOCS_URL, "no browser found, open the link manually")

@@ -1,6 +1,6 @@
 [project]
 name = "fsg"
-version = "0.4.0"
+version = "0.5.0"
 description = "Generates clean directory trees that respect .gitignore and keep your docs up to date."
 readme = "README.md"
 license = "MIT"
@@ -27,6 +27,7 @@ classifiers = [
 
 [project.urls]
 Homepage = "https://github.com/KarnesTH/fsg"
+Documentation = "https://karnesth.github.io/fsg/"
 Issues = "https://github.com/KarnesTH/fsg/issues"
 Changelog = "https://github.com/KarnesTH/fsg/blob/main/CHANGELOG.md"
 

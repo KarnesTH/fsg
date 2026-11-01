@@ -3,6 +3,17 @@
 All notable changes to this project are documented in this file.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses [Semantic Versioning](https://semver.org/).
 
+## [0.5.0] - 2026-11-01
+
+### Added
+
+- `--docs` opens the documentation in the browser and prints the URL when no browser is available
+- Documentation site with English and German pages at https://karnesth.github.io/fsg/
+
+### Changed
+
+- The README is shorter and links to the documentation for options, markers, configuration and styles
+
 ## [0.4.0] - 2026-10-31
 
 ### Added
@@ -77,6 +88,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 - Configuration via `.fsg.toml` or `[tool.fsg]` in `pyproject.toml`
 - `--version` and `--help`
 
+[0.5.0]: https://github.com/KarnesTH/fsg/releases/tag/v0.5.0
 [0.4.0]: https://github.com/KarnesTH/fsg/releases/tag/v0.4.0
 [0.3.0]: https://github.com/KarnesTH/fsg/releases/tag/v0.3.0
 [0.2.0]: https://github.com/KarnesTH/fsg/releases/tag/v0.2.0

@@ -1,3 +1,5 @@
+DOCS_URL = "https://karnesth.github.io/fsg/"
+
 STYLES = {
     "unicode": {"branch": "├── ", "last": "└── ", "pipe": "│   ", "space": "    "},
     "ascii": {"branch": "|-- ", "last": "`-- ", "pipe": "|   ", "space": "    "},

@@ -1,10 +1,12 @@
 import io
+import webbrowser
 from pathlib import Path
 
 import pytest
 
 import fsg
 from fsg.cli import main, parse_args
+from fsg.constants import DOCS_URL
 from fsg.errors import ClipboardError, GitError
 from fsg.marked_file import END_MARKER, START_MARKER
 from tests.conftest import create_files, init_repository, requires_git
@@ -613,6 +615,48 @@ class TestCopy:
         with pytest.raises(SystemExit) as exit_info:
             parse_args(["--copy", mode, "README.md"])
         assert exit_info.value.code == 2
+
+
+class TestDocs:
+    """Covers opening the documentation."""
+
+    def test_opens_docs_and_exits(self, tmp_path: Path, capsys, monkeypatch) -> None:
+        """Opens the documentation URL, reports it and exits with status 0 without rendering a tree."""
+
+        opened: list[str] = []
+        monkeypatch.setattr("fsg.cli.webbrowser.open", lambda url: opened.append(url) or True)
+        create_files(tmp_path, ["main.py"])
+        with pytest.raises(SystemExit) as exit_info:
+            main(["--docs", str(tmp_path)])
+        assert exit_info.value.code == 0
+        assert opened == [DOCS_URL]
+        assert capsys.readouterr().out == f"• opening {DOCS_URL}\n"
+
+    def test_prints_url_without_browser(self, capsys, monkeypatch) -> None:
+        """Prints the URL with a hint when no browser can be opened."""
+
+        monkeypatch.setattr("fsg.cli.webbrowser.open", lambda url: False)
+        with pytest.raises(SystemExit) as exit_info:
+            parse_args(["--docs"])
+        assert exit_info.value.code == 0
+        assert capsys.readouterr().out == f"• {DOCS_URL}\n  hint: no browser found, open the link manually\n"
+
+    def test_prints_url_on_browser_error(self, capsys, monkeypatch) -> None:
+        """Treats a browser error like a missing browser."""
+
+        def fail(url: str) -> bool:
+            raise webbrowser.Error("could not locate runnable browser")
+
+        monkeypatch.setattr("fsg.cli.webbrowser.open", fail)
+        with pytest.raises(SystemExit) as exit_info:
+            parse_args(["--docs"])
+        assert exit_info.value.code == 0
+        assert DOCS_URL in capsys.readouterr().out
+
+    def test_docs_url_points_to_pages(self) -> None:
+        """Points to the GitHub Pages site of the project."""
+
+        assert DOCS_URL == "https://karnesth.github.io/fsg/"
 
 
 class TestSections:
