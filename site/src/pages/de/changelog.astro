@@ -1,0 +1,15 @@
+---
+import ChangelogTimeline from "../../components/Changelog.astro";
+import FooterBar from "../../components/FooterBar.astro";
+import NavbarDocs from "../../components/NavbarDocs.astro";
+import { strings } from "../../i18n";
+import BaseLayout from "../../layouts/BaseLayout.astro";
+
+const t = strings.de;
+---
+
+<BaseLayout title={`${t.changelog.title} – fsg`} description={t.changelog.intro} path="changelog">
+    <NavbarDocs active="changelog" path="changelog" />
+    <ChangelogTimeline />
+    <FooterBar />
+</BaseLayout>

@@ -90,6 +90,18 @@
         "edit": "Seite bearbeiten",
         "anchor": "Link zu dieser Überschrift"
     },
+    "changelog": {
+        "title": "Changelog",
+        "intro": "Alle Änderungen an fsg, neueste zuerst, die Einträge auf Englisch. Grundlage:",
+        "all": "Alle",
+        "latest": "Aktuell",
+        "categories": {
+            "Added": "Neu",
+            "Changed": "Geändert",
+            "Fixed": "Behoben",
+            "Security": "Sicherheit"
+        }
+    },
     "footer": {
         "tagline": "Verzeichnisbäume, die .gitignore beachten und deine Doku aktuell halten.",
         "docs": "Doku",

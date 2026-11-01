@@ -90,6 +90,18 @@
         "edit": "Edit this page",
         "anchor": "Link to this heading"
     },
+    "changelog": {
+        "title": "Changelog",
+        "intro": "All changes to fsg, newest first. Based on",
+        "all": "All",
+        "latest": "Latest",
+        "categories": {
+            "Added": "Added",
+            "Changed": "Changed",
+            "Fixed": "Fixed",
+            "Security": "Security"
+        }
+    },
     "footer": {
         "tagline": "Directory trees that respect .gitignore and keep your docs up to date.",
         "docs": "Docs",

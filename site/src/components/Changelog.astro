@@ -1,0 +1,53 @@
+---
+import { strings, type Locale } from "../i18n";
+import { releases, type Category } from "../lib/changelog";
+
+const locale = (Astro.currentLocale ?? "en") as Locale;
+const t = strings[locale];
+const categories: Category[] = ["Added", "Changed", "Fixed", "Security"];
+const badges: Record<Category, string> = {
+    Added: "kd-badge kd-badge-success kd-badge-sm",
+    Changed: "kd-badge kd-badge-sm",
+    Fixed: "kd-badge kd-badge-warning kd-badge-sm",
+    Security: "kd-badge kd-badge-primary kd-badge-sm",
+};
+const format = new Intl.DateTimeFormat(locale, { dateStyle: "medium" });
+---
+
+<main class="mx-auto flex max-w-3xl flex-col gap-10 px-6 py-12">
+    <header class="flex flex-col gap-4">
+        <h1 class="m-0 text-4xl font-semibold tracking-tight">{t.changelog.title}</h1>
+        <p class="m-0 text-lg leading-relaxed text-kd-text-muted">{t.changelog.intro} <a class="text-kd-primary-hover" href="https://keepachangelog.com/en/1.1.0/">Keep a Changelog</a>, <a class="text-kd-primary-hover" href="https://semver.org/">Semantic Versioning</a>.</p>
+        <div class="kd-chips">
+            <button class="kd-chip kd-chip-active" type="button" data-filter="all" aria-pressed="true">{t.changelog.all}</button>
+            {categories.map((category) => (
+                <button class="kd-chip" type="button" data-filter={category} aria-pressed="false">{t.changelog.categories[category]}</button>
+            ))}
+        </div>
+    </header>
+
+    <ol class="kd-timeline">
+        {releases.map((release, index) => (
+            <li class={index === 0 ? "kd-timeline-active" : "kd-timeline-done"} data-release>
+                <span class="kd-timeline-marker"></span>
+                <div class="kd-timeline-content gap-3">
+                    <div class="flex flex-wrap items-center gap-3">
+                        <h2 class="m-0 text-xl font-semibold" id={`v${release.version.replaceAll(".", "-")}`}>
+                            <a class="text-kd-text no-underline" href={`https://github.com/KarnesTH/fsg/releases/tag/v${release.version}`}>v{release.version}</a>
+                        </h2>
+                        {index === 0 && <span class="kd-badge kd-badge-primary kd-badge-sm">{t.changelog.latest}</span>}
+                        <time class="kd-timeline-time" datetime={release.date}>{format.format(new Date(release.date))}</time>
+                    </div>
+                    <div class="kd-prose">
+                        <ul class="list-none pl-0">
+                            {release.entries.map((entry) => (
+                                <li data-category={entry.category}><span class={badges[entry.category]}>{t.changelog.categories[entry.category]}</span> <Fragment set:html={entry.html} /></li>
+                            ))}
+                        </ul>
+                    </div>
+                </div>
+            </li>
+        ))}
+    </ol>
+</main>
+<script src="../scripts/changelog-filter.js"></script>
