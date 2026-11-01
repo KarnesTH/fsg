@@ -1,0 +1,98 @@
+---
+title: Recipes
+description: Setups for common workflows, ready to copy.
+section: guides
+order: 4
+updated: 2026-11-01
+---
+
+## Check the tree in CI
+
+Fail the build when someone forgot to update the README. uvx runs fsg without installing it:
+
+<CodeFile name=".github/workflows/ci.yml">
+
+```yaml
+jobs:
+  docs:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+      - run: uvx fsg --check README.md
+```
+
+</CodeFile>
+
+<Alert title="Pin fsg">Use `uvx fsg@0.4.0` so a new release cannot change the tree in your build.</Alert>
+
+## Update with pre-commit
+
+`fsg --setup-hook README.md` writes this for you. To add it by hand:
+
+<CodeFile name=".pre-commit-config.yaml">
+
+```yaml
+repos:
+  - repo: https://github.com/KarnesTH/fsg
+    rev: v0.4.0
+    hooks:
+      - id: fsg          # updates README.md
+      # - id: fsg-check  # only checks, e.g. in CI
+```
+
+</CodeFile>
+
+For another file, override the arguments: `args: [--update, docs/structure.md]`.
+
+## Monorepo with several trees
+
+One marker pair per package, each with its own path and options. A single `fsg --update README.md` updates all of them.
+
+<CodeFile name="README.md">
+
+```markdown
+### API
+<!-- fsg:start path=packages/api depth=2 -->
+<!-- fsg:end -->
+
+### Web
+<!-- fsg:start path=packages/web/src dirs-only summary -->
+<!-- fsg:end -->
+```
+
+</CodeFile>
+
+## Only source files
+
+Show the Python files and leave the tests out:
+
+```console
+$ fsg -i "*.py" -e tests --summary
+```
+
+## Share a tree in an issue
+
+Copy the first two levels and paste them into a GitHub issue or a chat. The code fence is included, so it renders right away.
+
+```console
+$ fsg -d 2 --copy
+✔ tree copied to clipboard
+```
+
+## Tree in another file
+
+Keep the README short and put the structure into your docs. `path` in the marker is relative to that file:
+
+<CodeFile name="docs/architecture.md">
+
+```markdown
+<!-- fsg:start path=../src depth=3 -->
+<!-- fsg:end -->
+```
+
+</CodeFile>
+
+```console
+$ fsg --setup-hook docs/architecture.md
+```

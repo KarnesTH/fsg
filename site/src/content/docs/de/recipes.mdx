@@ -1,0 +1,98 @@
+---
+title: Rezepte
+description: Einrichtungen für typische Abläufe, fertig zum Kopieren.
+section: guides
+order: 4
+updated: 2026-11-01
+---
+
+## Den Baum in der CI prüfen
+
+Lass den Build scheitern, wenn jemand vergessen hat, die README zu aktualisieren. uvx startet fsg, ohne es zu installieren:
+
+<CodeFile name=".github/workflows/ci.yml">
+
+```yaml
+jobs:
+  docs:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+      - run: uvx fsg --check README.md
+```
+
+</CodeFile>
+
+<Alert title="fsg festpinnen">Nutze `uvx fsg@0.4.0`, damit ein neues Release den Baum in deinem Build nicht verändert.</Alert>
+
+## Mit pre-commit aktualisieren
+
+`fsg --setup-hook README.md` schreibt das für dich. Von Hand sieht es so aus:
+
+<CodeFile name=".pre-commit-config.yaml">
+
+```yaml
+repos:
+  - repo: https://github.com/KarnesTH/fsg
+    rev: v0.4.0
+    hooks:
+      - id: fsg          # updates README.md
+      # - id: fsg-check  # only checks, e.g. in CI
+```
+
+</CodeFile>
+
+Für eine andere Datei überschreibst du die Argumente: `args: [--update, docs/structure.md]`.
+
+## Monorepo mit mehreren Bäumen
+
+Ein Markerpaar pro Paket, jedes mit eigenem Pfad und eigenen Optionen. Ein einziges `fsg --update README.md` aktualisiert alle.
+
+<CodeFile name="README.md">
+
+```markdown
+### API
+<!-- fsg:start path=packages/api depth=2 -->
+<!-- fsg:end -->
+
+### Web
+<!-- fsg:start path=packages/web/src dirs-only summary -->
+<!-- fsg:end -->
+```
+
+</CodeFile>
+
+## Nur Quelldateien
+
+Zeig die Python-Dateien und lass die Tests weg:
+
+```console
+$ fsg -i "*.py" -e tests --summary
+```
+
+## Einen Baum in einem Issue teilen
+
+Kopier die ersten zwei Ebenen und füg sie in ein GitHub-Issue oder einen Chat ein. Der Codeblock ist mit drin, der Baum wird also sofort richtig dargestellt.
+
+```console
+$ fsg -d 2 --copy
+✔ tree copied to clipboard
+```
+
+## Baum in einer anderen Datei
+
+Halt die README kurz und pack die Struktur in deine Doku. `path` im Marker ist relativ zu dieser Datei:
+
+<CodeFile name="docs/architecture.md">
+
+```markdown
+<!-- fsg:start path=../src depth=3 -->
+<!-- fsg:end -->
+```
+
+</CodeFile>
+
+```console
+$ fsg --setup-hook docs/architecture.md
+```
