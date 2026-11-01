@@ -4,9 +4,11 @@ import { strings, type Locale } from "../../i18n";
 const locale = (Astro.currentLocale ?? "en") as Locale;
 const t = strings[locale];
 const code = await Astro.slots.render("default");
-const html = code.includes("language-console")
+const prompts = code.includes("language-console")
     ? code.replace(/^\$ /gm, '<span class="kd-code-prompt">$ </span>').replace(/(<code[^>]*>)\$ /, '$1<span class="kd-code-prompt">$ </span>')
     : code;
+const html = prompts.replace(/^(\s*)(&lt;!--.*?--&gt;)$/gm, '$1<span class="kd-code-comment">$2</span>')
+    .replace(/(<code[^>]*>)(&lt;!--.*?--&gt;)$/m, '$1<span class="kd-code-comment">$2</span>');
 ---
 
 <div class="kd-code">

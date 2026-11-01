@@ -1,0 +1,116 @@
+---
+title: Marker & Abschnitte
+description: fsg schreibt den Baum zwischen zwei Marker in einer beliebigen Textdatei und hält ihn dort aktuell. Eine Datei kann so viele Bäume enthalten, wie du brauchst.
+section: guides
+order: 1
+updated: 2026-11-01
+---
+
+## Marker einfügen
+
+Setz ein leeres Markerpaar dorthin, wo der Baum stehen soll:
+
+<CodeFile name="README.md">
+
+```markdown
+## Project structure
+
+<!-- fsg:start -->
+<!-- fsg:end -->
+```
+
+</CodeFile>
+
+## Aktualisieren und prüfen
+
+<Steps>
+<Step title="Baum schreiben">
+
+Alles zwischen den Markern wird ersetzt, der Rest der Datei bleibt, wie er ist.
+
+```console
+$ fsg --update README.md
+✔ README.md: tree updated
+```
+
+</Step>
+<Step title="Prüfen, z. B. in der CI">
+
+Beendet sich mit `1`, wenn der Baum veraltet ist, und mit `2`, wenn die Datei oder die Marker fehlen.
+
+```console
+$ fsg --check README.md
+✔ README.md: tree is up to date
+```
+
+</Step>
+</Steps>
+
+Mit `--update` und `--check` liest fsg Pfad und Optionen aus den Markern und der [Konfiguration](../configuration/).
+
+## Kommentare
+
+Schreib einen Kommentar hinter einen Eintrag, getrennt durch mindestens zwei Leerzeichen. Er bleibt bei jedem Update erhalten, und alle Kommentare werden ausgerichtet:
+
+```plaintext
+src/
+└── fsg/
+    ├── hooks/            # commit hook setup
+    ├── trees/            # git and plain directory walk
+    ├── cli.py            # arguments and modes
+    ├── config.py         # .fsg.toml and [tool.fsg]
+    └── tree_comments.py  # comments kept on update
+```
+
+## Mehrere Bäume pro Datei
+
+Jedes Markerpaar wird für sich aktualisiert. Optionen im Start-Marker gelten nur für diesen Baum:
+
+<CodeFile name="docs/structure.md">
+
+```markdown
+## Backend
+<!-- fsg:start path=../backend depth=2 -->
+<!-- fsg:end -->
+
+## Frontend
+<!-- fsg:start path=../frontend/src dirs-only summary exclude=*.test.ts,mocks -->
+<!-- fsg:end -->
+```
+
+</CodeFile>
+
+### Marker-Optionen
+
+Optionen schreibst du als `key=value`. Ein einzelner Schlüssel wie `summary` bedeutet `true`, Werte mit Leerzeichen kommen in Anführungszeichen.
+
+| Option      | Beispiel                 | Beschreibung                                                             |
+|-------------|--------------------------|--------------------------------------------------------------------------|
+| `path`      | `path=src`               | Auszugebendes Verzeichnis, relativ zur Datei; muss im Repository bleiben |
+| `depth`     | `depth=2`                | Anzahl der Ebenen unterhalb der Wurzel                                   |
+| `dirs-only` | `dirs-only`              | Nur Verzeichnisse ausgeben                                               |
+| `exclude`   | `exclude=*.log,docs/api` | Kommagetrennte Globs, zusätzlich zu den konfigurierten                   |
+| `include`   | `include=*.py`           | Kommagetrennte Globs, zusätzlich zu den konfigurierten                   |
+| `fence`     | `fence=false`            | Den Baum in einen Codeblock setzen                                       |
+| `style`     | `style=rounded`          | Einer der [eingebauten Stile](../styles/)                                |
+| `summary`   | `summary`                | Die Zeile mit der Anzahl der Verzeichnisse und Dateien anhängen          |
+
+## Regeln für Marker
+
+- Jeder Marker steht in einer eigenen Zeile, um höchstens drei Leerzeichen eingerückt.
+- Marker in einem eingezäunten oder eingerückten Codeblock werden ignoriert, du kannst sie also in Beispielen zeigen.
+- Jeder Start-Marker braucht vor dem nächsten Start-Marker einen End-Marker.
+
+<Alert type="warning" title="Kaputte Paare stoppen das Update">Ein Start-Marker ohne End-Marker oder ein End-Marker ohne Start-Marker wird mit seiner Zeilennummer gemeldet, und es wird nichts geschrieben.</Alert>
+
+## Commit-Hook
+
+`--setup-hook` führt das Update bei jedem Commit aus. Es erweitert eine vorhandene `.pre-commit-config.yaml`, sonst den git-`pre-commit`-Hook. Überschrieben wird nichts.
+
+```console
+$ fsg --setup-hook README.md
+✔ .pre-commit-config.yaml: fsg hook added
+  hint: run pre-commit install if not done yet
+```
+
+Der native git-Hook aktualisiert den Baum und stoppt den Commit, wenn er sich geändert hat, damit du den neuen Baum stagen kannst. Eine manuelle pre-commit-Einrichtung findest du unter [Rezepte](../recipes/).

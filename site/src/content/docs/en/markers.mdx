@@ -1,0 +1,116 @@
+---
+title: Markers & sections
+description: fsg writes the tree between two markers in any text file and keeps it there. One file can hold as many trees as you need.
+section: guides
+order: 1
+updated: 2026-11-01
+---
+
+## Add the markers
+
+Put an empty marker pair where the tree should appear:
+
+<CodeFile name="README.md">
+
+```markdown
+## Project structure
+
+<!-- fsg:start -->
+<!-- fsg:end -->
+```
+
+</CodeFile>
+
+## Update and check
+
+<Steps>
+<Step title="Write the tree">
+
+Everything between the markers is replaced, the rest of the file stays as it is.
+
+```console
+$ fsg --update README.md
+✔ README.md: tree updated
+```
+
+</Step>
+<Step title="Check it, e.g. in CI">
+
+Exits with `1` when the tree is outdated and with `2` when the file or the markers are missing.
+
+```console
+$ fsg --check README.md
+✔ README.md: tree is up to date
+```
+
+</Step>
+</Steps>
+
+With `--update` and `--check`, fsg reads the path and options from the markers and the [configuration](../configuration/).
+
+## Comments
+
+Write a comment after an entry, separated by at least two spaces. It is kept on every update and all comments are aligned:
+
+```plaintext
+src/
+└── fsg/
+    ├── hooks/            # commit hook setup
+    ├── trees/            # git and plain directory walk
+    ├── cli.py            # arguments and modes
+    ├── config.py         # .fsg.toml and [tool.fsg]
+    └── tree_comments.py  # comments kept on update
+```
+
+## Several trees per file
+
+Every marker pair is updated on its own. Options in the start marker apply to that tree only:
+
+<CodeFile name="docs/structure.md">
+
+```markdown
+## Backend
+<!-- fsg:start path=../backend depth=2 -->
+<!-- fsg:end -->
+
+## Frontend
+<!-- fsg:start path=../frontend/src dirs-only summary exclude=*.test.ts,mocks -->
+<!-- fsg:end -->
+```
+
+</CodeFile>
+
+### Marker options
+
+Write options as `key=value`. A bare key like `summary` means `true`, values with spaces go in quotes.
+
+| Option      | Example                  | Description                                                                |
+|-------------|--------------------------|----------------------------------------------------------------------------|
+| `path`      | `path=src`               | Directory to render, relative to the file; must stay inside the repository |
+| `depth`     | `depth=2`                | Number of levels below the root                                            |
+| `dirs-only` | `dirs-only`              | Render directories only                                                    |
+| `exclude`   | `exclude=*.log,docs/api` | Comma-separated globs, added to the configured ones                        |
+| `include`   | `include=*.py`           | Comma-separated globs, added to the configured ones                        |
+| `fence`     | `fence=false`            | Wrap the tree in a code fence                                              |
+| `style`     | `style=rounded`          | One of the [built-in styles](../styles/)                                   |
+| `summary`   | `summary`                | Add the line with the number of directories and files                      |
+
+## Marker rules
+
+- Each marker stands on its own line, indented by at most three spaces.
+- Markers inside a fenced or indented code block are ignored, so you can show them in examples.
+- Every start marker needs an end marker before the next start marker.
+
+<Alert type="warning" title="Broken pairs stop the update">A start marker without end marker, or an end marker without start marker, is reported with its line number and nothing is written.</Alert>
+
+## Commit hook
+
+`--setup-hook` runs the update on every commit. It extends an existing `.pre-commit-config.yaml`, otherwise the git `pre-commit` hook. Nothing is overwritten.
+
+```console
+$ fsg --setup-hook README.md
+✔ .pre-commit-config.yaml: fsg hook added
+  hint: run pre-commit install if not done yet
+```
+
+The native git hook updates the tree and stops the commit when it changed, so you can stage the new tree. For a manual pre-commit setup, see [Recipes](../recipes/).
