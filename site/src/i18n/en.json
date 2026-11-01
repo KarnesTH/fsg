@@ -15,7 +15,12 @@
         "copy": "Copy"
     },
     "home": {
-        "title": "fsg – directory trees that keep your docs up to date",
+        "title": "fsg – file structure generator",
+        "tree": {
+            "file": "respects .gitignore",
+            "structure": "comments survive updates",
+            "generator": "keeps your README current"
+        },
         "description": "fsg prints clean project trees that respect .gitignore and keeps them current in your README – with a check for CI and a commit hook that does it for you.",
         "badge": "is out",
         "whatsNew": "What's new?",

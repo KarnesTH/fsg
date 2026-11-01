@@ -5,12 +5,24 @@ import { latest } from "../lib/changelog";
 
 const locale = (Astro.currentLocale ?? "en") as Locale;
 const t = strings[locale];
+const entries = [
+    { glyph: "├── ", name: "file/", comment: t.home.tree.file },
+    { glyph: "├── ", name: "structure/", comment: t.home.tree.structure },
+    { glyph: "└── ", name: "generator.py", comment: t.home.tree.generator },
+];
+const width = Math.max(...entries.map((entry) => entry.glyph.length + entry.name.length)) + 2;
 ---
 
 <section class="kd-hero">
     <div class="kd-hero-content">
         <span class="kd-badge kd-badge-outline">v{latest.version} {t.home.badge} · <a class="text-kd-primary-hover" href={getRelativeLocaleUrl(locale, "changelog")}>{t.home.whatsNew}</a></span>
-        <h1 class="kd-hero-title">{t.home.title}</h1>
+        <h1 class="kd-hero-title"><span class="text-kd-primary">fsg</span></h1>
+        <div class="kd-mockup-code w-full max-w-lg text-left text-sm md:text-base" aria-label="file structure generator">
+            <pre><code>fsg/</code></pre>
+            {entries.map((entry) => (
+                <pre><code>{entry.glyph}<span class="font-semibold text-kd-primary-hover">{entry.name[0]}</span>{entry.name.slice(1)}{" ".repeat(width - entry.glyph.length - entry.name.length)}<span class="text-kd-text-muted"># {entry.comment}</span></code></pre>
+            ))}
+        </div>
         <p class="kd-hero-text">{t.home.description}</p>
         <div class="kd-hero-actions">
             <a class="kd-btn kd-btn-primary kd-btn-lg" href={getRelativeLocaleUrl(locale, "installation")}>{t.home.getStarted}<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l14 0" /><path d="M13 18l6 -6" /><path d="M13 6l6 6" /></svg></a>
