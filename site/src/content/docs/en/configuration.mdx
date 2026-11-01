@@ -1,0 +1,102 @@
+---
+title: Configuration
+description: Store the path and the options next to your project, so --update, --check and the commit hook need no arguments.
+section: guides
+order: 2
+updated: 2026-11-01
+---
+
+## Config files
+
+Use the `[tool.fsg]` table of your `pyproject.toml` or a separate `.fsg.toml`:
+
+<Tabs labels={["pyproject.toml", ".fsg.toml"]}>
+
+```toml
+[tool.fsg]
+path = "src"
+depth = 2
+exclude = ["*.log", "docs/api"]
+summary = true
+style = "rounded"
+
+[tool.fsg.glyphs]
+last = "╰── "
+```
+
+```toml
+path = "src"
+depth = 2
+exclude = ["*.log", "docs/api"]
+summary = true
+style = "rounded"
+
+[glyphs]
+last = "╰── "
+```
+
+</Tabs>
+
+## Where fsg looks
+
+<Steps>
+<Step title="Start at the target file">
+
+The search begins in the directory of the file given to `--update` or `--check`.
+
+</Step>
+<Step title="Walk up">
+
+The first directory with a `.fsg.toml` or a `pyproject.toml` holding `[tool.fsg]` wins. In the same directory, `.fsg.toml` comes first.
+
+</Step>
+<Step title="Stop at the project boundary">
+
+The search ends at the root of the git repository, outside a repository at your home directory.
+
+</Step>
+</Steps>
+
+<Alert title="Plain fsg ignores the config">Without `--update` or `--check`, only the command line counts, so `fsg` always prints the whole current directory.</Alert>
+
+## Keys
+
+| Key         | Type            | Default     | Description                                                  |
+|-------------|-----------------|-------------|--------------------------------------------------------------|
+| `path`      | string          | `"."`       | Directory to render, relative to the config file             |
+| `depth`     | integer         | –           | Number of levels below the root, at least 1                  |
+| `dirs-only` | boolean         | `false`     | Render directories only                                      |
+| `exclude`   | list of strings | `[]`        | Globs of entries to leave out                                |
+| `include`   | list of strings | `[]`        | Globs of entries to show, exclude wins                       |
+| `fence`     | boolean         | `true`      | Wrap the tree in a code fence                                |
+| `summary`   | boolean         | `false`     | Add the line with the number of directories and files        |
+| `style`     | string          | `"unicode"` | `unicode`, `ascii`, `rounded`, `heavy` or `double`           |
+| `ascii`     | boolean         | `false`     | ASCII tree and status symbols                                |
+| `glyphs`    | table           | –           | `branch`, `last`, `pipe`, `space`, see [Styles](../styles/)  |
+
+<Alert type="warning" title="path stays inside">A `path` that leaves the directory of the config file is rejected.</Alert>
+
+## Precedence
+
+Each value comes from the most specific place that sets it. Include and exclude patterns are combined from all three.
+
+<ul class="kd-steps list-none pl-0">
+    <li class="kd-step kd-step-done">
+        <span class="text-base font-semibold text-kd-text">Config file</span>
+        <span class="px-4 text-sm leading-relaxed text-kd-text-muted">Defaults for the whole project</span>
+    </li>
+    <li class="kd-step kd-step-done">
+        <span class="text-base font-semibold text-kd-text">Start marker</span>
+        <span class="px-4 text-sm leading-relaxed text-kd-text-muted">Overrides the config for one tree</span>
+    </li>
+    <li class="kd-step kd-step-active">
+        <span class="text-base font-semibold text-kd-text">Command line</span>
+        <span class="px-4 text-sm leading-relaxed text-kd-text-muted">Overrides both, for every tree</span>
+    </li>
+</ul>
+
+```console
+# config: depth = 2, marker: depth=3
+$ fsg --update README.md            # renders 3 levels
+$ fsg --update README.md --depth 1  # renders 1 level
+```

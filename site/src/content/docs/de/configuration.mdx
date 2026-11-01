@@ -1,0 +1,102 @@
+---
+title: Konfiguration
+description: Leg Pfad und Optionen neben deinem Projekt ab, dann brauchen --update, --check und der Commit-Hook keine Argumente.
+section: guides
+order: 2
+updated: 2026-11-01
+---
+
+## Konfigurationsdateien
+
+Nutze die Tabelle `[tool.fsg]` in deiner `pyproject.toml` oder eine eigene `.fsg.toml`:
+
+<Tabs labels={["pyproject.toml", ".fsg.toml"]}>
+
+```toml
+[tool.fsg]
+path = "src"
+depth = 2
+exclude = ["*.log", "docs/api"]
+summary = true
+style = "rounded"
+
+[tool.fsg.glyphs]
+last = "╰── "
+```
+
+```toml
+path = "src"
+depth = 2
+exclude = ["*.log", "docs/api"]
+summary = true
+style = "rounded"
+
+[glyphs]
+last = "╰── "
+```
+
+</Tabs>
+
+## Wo fsg sucht
+
+<Steps>
+<Step title="Bei der Zieldatei anfangen">
+
+Die Suche beginnt im Verzeichnis der Datei, die du `--update` oder `--check` übergibst.
+
+</Step>
+<Step title="Nach oben gehen">
+
+Das erste Verzeichnis mit einer `.fsg.toml` oder einer `pyproject.toml` mit `[tool.fsg]` gewinnt. Im selben Verzeichnis hat `.fsg.toml` Vorrang.
+
+</Step>
+<Step title="An der Projektgrenze aufhören">
+
+Die Suche endet an der Wurzel des Git-Repositorys, außerhalb eines Repositorys an deinem Home-Verzeichnis.
+
+</Step>
+</Steps>
+
+<Alert title="Einfaches fsg ignoriert die Konfiguration">Ohne `--update` oder `--check` zählt nur die Kommandozeile, `fsg` gibt also immer das ganze aktuelle Verzeichnis aus.</Alert>
+
+## Schlüssel
+
+| Schlüssel   | Typ            | Standard    | Beschreibung                                                    |
+|-------------|----------------|-------------|-----------------------------------------------------------------|
+| `path`      | String         | `"."`       | Auszugebendes Verzeichnis, relativ zur Konfigurationsdatei      |
+| `depth`     | Ganzzahl       | –           | Anzahl der Ebenen unterhalb der Wurzel, mindestens 1            |
+| `dirs-only` | Boolean        | `false`     | Nur Verzeichnisse ausgeben                                      |
+| `exclude`   | Liste (String) | `[]`        | Globs für Einträge, die wegfallen                               |
+| `include`   | Liste (String) | `[]`        | Globs für Einträge, die erscheinen, exclude gewinnt             |
+| `fence`     | Boolean        | `true`      | Den Baum in einen Codeblock setzen                              |
+| `summary`   | Boolean        | `false`     | Die Zeile mit der Anzahl der Verzeichnisse und Dateien anhängen |
+| `style`     | String         | `"unicode"` | `unicode`, `ascii`, `rounded`, `heavy` oder `double`            |
+| `ascii`     | Boolean        | `false`     | ASCII-Baum und ASCII-Statussymbole                              |
+| `glyphs`    | Tabelle        | –           | `branch`, `last`, `pipe`, `space`, siehe [Stile](../styles/)    |
+
+<Alert type="warning" title="path bleibt drinnen">Ein `path`, der das Verzeichnis der Konfigurationsdatei verlässt, wird abgelehnt.</Alert>
+
+## Rangfolge
+
+Jeder Wert kommt von der spezifischsten Stelle, die ihn setzt. Include- und exclude-Muster werden aus allen drei Quellen zusammengeführt.
+
+<ul class="kd-steps list-none pl-0">
+    <li class="kd-step kd-step-done">
+        <span class="text-base font-semibold text-kd-text">Konfigurationsdatei</span>
+        <span class="px-4 text-sm leading-relaxed text-kd-text-muted">Standard für das ganze Projekt</span>
+    </li>
+    <li class="kd-step kd-step-done">
+        <span class="text-base font-semibold text-kd-text">Start-Marker</span>
+        <span class="px-4 text-sm leading-relaxed text-kd-text-muted">Überschreibt die Konfiguration für einen Baum</span>
+    </li>
+    <li class="kd-step kd-step-active">
+        <span class="text-base font-semibold text-kd-text">Kommandozeile</span>
+        <span class="px-4 text-sm leading-relaxed text-kd-text-muted">Überschreibt beides, für jeden Baum</span>
+    </li>
+</ul>
+
+```console
+# config: depth = 2, marker: depth=3
+$ fsg --update README.md            # renders 3 levels
+$ fsg --update README.md --depth 1  # renders 1 level
+```
