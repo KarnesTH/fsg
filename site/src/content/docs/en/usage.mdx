@@ -1,0 +1,136 @@
+---
+title: Usage
+description: fsg renders the tree of a directory. Options shape the output, three modes write it into a file, check it or set up a commit hook.
+section: getting-started
+order: 2
+updated: 2026-11-01
+---
+
+## Basics
+
+```console
+$ fsg [options] [path]
+```
+
+Without a path, fsg renders the current directory. The output is wrapped in a `plaintext` code fence, so you can paste it straight into Markdown:
+
+````console
+$ fsg src --dirs-only
+```plaintext
+src/
+└── fsg/
+    ├── hooks/
+    └── trees/
+```
+````
+
+## Options
+
+| Option                          | Description                                                                               |
+|---------------------------------|-------------------------------------------------------------------------------------------|
+| `path`                          | Directory to render (default: current directory)                                          |
+| `-d N`, `--depth N`             | Render only the first N levels below the root                                             |
+| `--dirs-only`, `--no-dirs-only` | Render directories only                                                                   |
+| `-e`, `--exclude PATTERN`       | Leave out entries whose name or relative path matches the glob (repeatable)               |
+| `-i`, `--include PATTERN`       | Show only entries whose name or relative path matches the glob (repeatable, exclude wins) |
+| `--fence`, `--no-fence`         | Wrap the tree in a Markdown code fence (default: on)                                      |
+| `--summary`, `--no-summary`     | Add a line with the number of directories and files (default: off)                        |
+| `-s`, `--style NAME`            | Built-in style: `unicode`, `ascii`, `rounded`, `heavy`, `double`                          |
+| `--glyph KEY=VALUE`             | Replace one glyph of the style: `branch`, `last`, `pipe` or `space` (repeatable)          |
+| `--ascii`, `--no-ascii`         | Short for `--style ascii`, also uses ASCII status symbols                                 |
+| `--copy`                        | Copy the tree to the clipboard instead of printing it                                     |
+| `-u`, `--update FILE`           | Write the tree between the fsg markers of FILE                                            |
+| `-c`, `--check FILE`            | Exit with status 1 when the tree in FILE is out of date                                   |
+| `--setup-hook FILE`             | Run `fsg --update FILE` on every commit                                                   |
+| `-h`, `--help`                  | Show the help text and exit                                                               |
+| `-V`, `--version`               | Show the version and exit                                                                 |
+
+`--update`, `--check` and `--setup-hook` exclude each other. They are explained in [Markers & sections](../markers/).
+
+## Include and exclude
+
+Both take a glob that is matched against the name and the path relative to the root. Repeat the option for several patterns.
+
+<Tabs labels={["Include", "Exclude"]}>
+
+```console
+$ fsg src -i "*hook*" --no-fence
+src/
+└── fsg/
+    └── hooks/
+        ├── __init__.py
+        ├── git_hook.py
+        ├── hook.py
+        └── pre_commit_hook.py
+```
+
+```console
+$ fsg -e "*.log" -e docs/api
+```
+
+</Tabs>
+
+<Alert title="Exclude wins">An entry that matches both an include and an exclude pattern is left out.</Alert>
+
+## What fsg leaves out
+
+Inside a git repository, only files git tracks or would track are listed, so everything in `.gitignore` stays out. In and outside a repository, fsg also skips these names:
+
+<div class="kd-chips">
+    <span class="kd-chip">.git</span>
+    <span class="kd-chip">.svn</span>
+    <span class="kd-chip">.hg</span>
+    <span class="kd-chip">.idea</span>
+    <span class="kd-chip">.vscode</span>
+    <span class="kd-chip">{"__pycache__"}</span>
+    <span class="kd-chip">.mypy_cache</span>
+    <span class="kd-chip">.pytest_cache</span>
+    <span class="kd-chip">.ruff_cache</span>
+    <span class="kd-chip">.venv</span>
+    <span class="kd-chip">venv</span>
+    <span class="kd-chip">env</span>
+    <span class="kd-chip">node_modules</span>
+    <span class="kd-chip">target</span>
+    <span class="kd-chip">dist</span>
+    <span class="kd-chip">build</span>
+    <span class="kd-chip">out</span>
+    <span class="kd-chip">.godot</span>
+    <span class="kd-chip">.import</span>
+    <span class="kd-chip">.DS_Store</span>
+    <span class="kd-chip">Thumbs.db</span>
+    <span class="kd-chip">uv.lock</span>
+</div>
+
+Directories are listed first, entries are sorted case-insensitively and empty directories are omitted.
+
+## Copy to the clipboard
+
+```console
+$ fsg -d 2 --copy
+✔ tree copied to clipboard
+```
+
+| System         | Tool                |
+|----------------|---------------------|
+| Windows        | `clip.exe`          |
+| macOS          | `pbcopy`            |
+| Linux, Wayland | `wl-copy`           |
+| Linux, X11     | `xclip` or `xsel`   |
+
+`--copy` cannot be combined with `--update`, `--check` or `--setup-hook`.
+
+## Exit codes
+
+| Code | Meaning                                                                      |
+|------|------------------------------------------------------------------------------|
+| `0`  | Success, or the tree is up to date                                           |
+| `1`  | `--check` found an outdated tree                                             |
+| `2`  | Any error: missing file or markers, invalid config, path is not a directory  |
+
+Errors come with a hint on how to fix them:
+
+```console
+$ fsg --check README.md
+✖ README.md: tree is out of date
+  hint: run fsg --update README.md
+```

@@ -1,6 +1,8 @@
 ---
 import { getRelativeLocaleUrl } from "astro:i18n";
 import { strings, type Locale } from "../i18n";
+import { Image } from 'astro:assets';
+import logo from "../assets/img/logo.svg";
 
 const locale = (Astro.currentLocale ?? "en") as Locale;
 const t = strings[locale];
@@ -11,7 +13,7 @@ const base = import.meta.env.BASE_URL;
     <div class="kd-footer">
         <nav>
             <a class="kd-navbar-brand" href={getRelativeLocaleUrl(locale, "")}>
-                <img src={`${base}/logo.svg`} width="28" height="28" alt="" />
+                <Image src={logo} width={28} height={28} alt="" />
                 fsg
             </a>
             <p class="m-0 leading-relaxed">{t.footer.tagline}</p>

@@ -1,0 +1,136 @@
+---
+title: Nutzung
+description: fsg gibt den Baum eines Verzeichnisses aus. Optionen formen die Ausgabe, drei Modi schreiben sie in eine Datei, prüfen sie oder richten einen Commit-Hook ein.
+section: getting-started
+order: 2
+updated: 2026-11-01
+---
+
+## Grundlagen
+
+```console
+$ fsg [options] [path]
+```
+
+Ohne Pfad gibt fsg das aktuelle Verzeichnis aus. Die Ausgabe steht in einem `plaintext`-Codeblock, du kannst sie also direkt in Markdown einfügen:
+
+````console
+$ fsg src --dirs-only
+```plaintext
+src/
+└── fsg/
+    ├── hooks/
+    └── trees/
+```
+````
+
+## Optionen
+
+| Option                          | Beschreibung                                                                                           |
+|---------------------------------|--------------------------------------------------------------------------------------------------------|
+| `path`                          | Verzeichnis, das ausgegeben wird (Standard: aktuelles Verzeichnis)                                     |
+| `-d N`, `--depth N`             | Nur die ersten N Ebenen unterhalb der Wurzel ausgeben                                                  |
+| `--dirs-only`, `--no-dirs-only` | Nur Verzeichnisse ausgeben                                                                             |
+| `-e`, `--exclude PATTERN`       | Einträge weglassen, deren Name oder relativer Pfad zum Glob passt (mehrfach möglich)                   |
+| `-i`, `--include PATTERN`       | Nur Einträge zeigen, deren Name oder relativer Pfad zum Glob passt (mehrfach möglich, exclude gewinnt) |
+| `--fence`, `--no-fence`         | Den Baum in einen Markdown-Codeblock setzen (Standard: an)                                             |
+| `--summary`, `--no-summary`     | Eine Zeile mit der Anzahl der Verzeichnisse und Dateien anhängen (Standard: aus)                       |
+| `-s`, `--style NAME`            | Eingebauter Stil: `unicode`, `ascii`, `rounded`, `heavy`, `double`                                     |
+| `--glyph KEY=VALUE`             | Ein Zeichen des Stils ersetzen: `branch`, `last`, `pipe` oder `space` (mehrfach möglich)               |
+| `--ascii`, `--no-ascii`         | Kurz für `--style ascii`, nutzt auch ASCII-Statussymbole                                               |
+| `--copy`                        | Den Baum in die Zwischenablage kopieren statt ihn auszugeben                                           |
+| `-u`, `--update FILE`           | Den Baum zwischen die fsg-Marker von FILE schreiben                                                    |
+| `-c`, `--check FILE`            | Mit Status 1 beenden, wenn der Baum in FILE veraltet ist                                               |
+| `--setup-hook FILE`             | `fsg --update FILE` bei jedem Commit ausführen                                                         |
+| `-h`, `--help`                  | Hilfetext anzeigen und beenden                                                                         |
+| `-V`, `--version`               | Version anzeigen und beenden                                                                           |
+
+`--update`, `--check` und `--setup-hook` schließen sich gegenseitig aus. Erklärt werden sie unter [Marker & Abschnitte](../markers/).
+
+## Include und exclude
+
+Beide nehmen einen Glob, der mit dem Namen und dem Pfad relativ zur Wurzel verglichen wird. Für mehrere Muster wiederholst du die Option.
+
+<Tabs labels={["Include", "Exclude"]}>
+
+```console
+$ fsg src -i "*hook*" --no-fence
+src/
+└── fsg/
+    └── hooks/
+        ├── __init__.py
+        ├── git_hook.py
+        ├── hook.py
+        └── pre_commit_hook.py
+```
+
+```console
+$ fsg -e "*.log" -e docs/api
+```
+
+</Tabs>
+
+<Alert title="Exclude gewinnt">Ein Eintrag, der sowohl zu einem include- als auch zu einem exclude-Muster passt, wird weggelassen.</Alert>
+
+## Was fsg weglässt
+
+In einem Git-Repository erscheinen nur Dateien, die git verfolgt oder verfolgen würde. Alles aus `.gitignore` bleibt also draußen. Innerhalb und außerhalb eines Repositorys überspringt fsg außerdem diese Namen:
+
+<div class="kd-chips">
+    <span class="kd-chip">.git</span>
+    <span class="kd-chip">.svn</span>
+    <span class="kd-chip">.hg</span>
+    <span class="kd-chip">.idea</span>
+    <span class="kd-chip">.vscode</span>
+    <span class="kd-chip">{"__pycache__"}</span>
+    <span class="kd-chip">.mypy_cache</span>
+    <span class="kd-chip">.pytest_cache</span>
+    <span class="kd-chip">.ruff_cache</span>
+    <span class="kd-chip">.venv</span>
+    <span class="kd-chip">venv</span>
+    <span class="kd-chip">env</span>
+    <span class="kd-chip">node_modules</span>
+    <span class="kd-chip">target</span>
+    <span class="kd-chip">dist</span>
+    <span class="kd-chip">build</span>
+    <span class="kd-chip">out</span>
+    <span class="kd-chip">.godot</span>
+    <span class="kd-chip">.import</span>
+    <span class="kd-chip">.DS_Store</span>
+    <span class="kd-chip">Thumbs.db</span>
+    <span class="kd-chip">uv.lock</span>
+</div>
+
+Verzeichnisse stehen zuerst, Einträge werden ohne Beachtung der Groß- und Kleinschreibung sortiert und leere Verzeichnisse weggelassen.
+
+## In die Zwischenablage kopieren
+
+```console
+$ fsg -d 2 --copy
+✔ tree copied to clipboard
+```
+
+| System         | Tool                |
+|----------------|---------------------|
+| Windows        | `clip.exe`          |
+| macOS          | `pbcopy`            |
+| Linux, Wayland | `wl-copy`           |
+| Linux, X11     | `xclip` oder `xsel` |
+
+`--copy` lässt sich nicht mit `--update`, `--check` oder `--setup-hook` kombinieren.
+
+## Exit-Codes
+
+| Code | Bedeutung                                                                                 |
+|------|-------------------------------------------------------------------------------------------|
+| `0`  | Erfolg, oder der Baum ist aktuell                                                         |
+| `1`  | `--check` hat einen veralteten Baum gefunden                                              |
+| `2`  | Jeder Fehler: Datei oder Marker fehlen, Konfiguration ungültig, Pfad ist kein Verzeichnis |
+
+Fehler kommen mit einem Hinweis, wie du sie behebst:
+
+```console
+$ fsg --check README.md
+✖ README.md: tree is out of date
+  hint: run fsg --update README.md
+```
