@@ -1,0 +1,27 @@
+---
+import FooterBar from "../components/FooterBar.astro";
+import NavbarDocs from "../components/NavbarDocs.astro";
+import BaseLayout from "../layouts/BaseLayout.astro";
+import { docsFor, slugOf } from "../lib/docs";
+
+const docs = await docsFor("en");
+const routes = [...docs.map((doc) => `${slugOf(doc)}/`), "changelog/"];
+---
+
+<BaseLayout title="Page not found – fsg" description="This page was moved or never existed.">
+    <NavbarDocs />
+    <main class="mx-auto flex min-h-[70vh] max-w-xl flex-col items-center justify-center gap-6 px-6 py-16 text-center">
+        <span class="kd-mono text-8xl font-medium tracking-tight text-kd-primary-hover">404</span>
+        <h1 class="m-0 text-3xl font-semibold tracking-tight">Page not found</h1>
+        <p class="m-0 leading-relaxed text-kd-text-muted">This page was moved or never existed. The search or the tree below may help.</p>
+        <div class="kd-code w-full max-w-sm text-left">
+            <pre>fsg/{routes.map((route, index) => `\n${index === routes.length - 1 ? "└── " : "├── "}${route}`).join("")}</pre>
+        </div>
+        <div class="flex flex-wrap justify-center gap-3">
+            <a class="kd-btn kd-btn-primary" href={`${import.meta.env.BASE_URL}/`}><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l-2 0l9 -9l9 9l-2 0" /><path d="M5 12v7a2 2 0 0 0 2 2h10a2 2 0 0 0 2 -2v-7" /><path d="M9 21v-6a2 2 0 0 1 2 -2h2a2 2 0 0 1 2 2v6" /></svg>Back to the docs</a>
+            <button class="kd-btn kd-btn-outline" type="button" data-search-open><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 10a7 7 0 1 0 14 0a7 7 0 1 0 -14 0" /><path d="M21 21l-6 -6" /></svg>Search</button>
+            <a class="kd-btn kd-btn-ghost" href="https://github.com/KarnesTH/fsg/issues"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 9v-1a3 3 0 0 1 6 0v1" /><path d="M8 9h8a6 6 0 0 1 1 3v3a5 5 0 0 1 -10 0v-3a6 6 0 0 1 1 -3" /><path d="M3 13l4 0" /><path d="M17 13l4 0" /><path d="M12 20l0 -6" /><path d="M4 19l3.35 -2" /><path d="M20 19l-3.35 -2" /><path d="M4 7l3.75 2.4" /><path d="M20 7l-3.75 2.4" /></svg>Report a broken link</a>
+        </div>
+    </main>
+    <FooterBar />
+</BaseLayout>

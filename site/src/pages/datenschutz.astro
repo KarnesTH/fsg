@@ -1,0 +1,51 @@
+---
+import FooterBar from "../components/FooterBar.astro";
+import LegalNotice from "../components/LegalNotice.astro";
+import NavbarDocs from "../components/NavbarDocs.astro";
+import BaseLayout from "../layouts/BaseLayout.astro";
+---
+
+<BaseLayout title="Datenschutz – fsg" description="Datenschutzerklärung der fsg-Dokumentation">
+    <NavbarDocs />
+    <LegalNotice active="datenschutz">
+        <h1>Datenschutzerklärung</h1>
+        <p class="kd-lead">Diese Seite setzt keine Cookies, nutzt kein Tracking und lädt keine Inhalte von Drittanbietern.</p>
+
+        <h2>Verantwortlicher</h2>
+        <p>Patrick Hähnel, Karnes Development<br />Am Rüsing 29, 59555 Lippstadt<br />E-Mail: <a href="mailto:info@karnes-development.de">info@karnes-development.de</a></p>
+
+        <h2>Hosting über GitHub Pages</h2>
+        <p>Die Seite wird über GitHub Pages bereitgestellt. Anbieter ist die GitHub, Inc., 88 Colin P. Kelly Jr. Street, San Francisco, CA 94107, USA.</p>
+        <p>Beim Aufruf einer Seite verarbeitet GitHub technisch notwendige Daten, um sie auszuliefern und den Dienst abzusichern. Dazu gehört die IP-Adresse, die laut GitHub zu Sicherheitszwecken protokolliert und gespeichert wird.</p>
+        <div class="kd-table-wrap">
+            <table>
+                <tbody>
+                <tr><td>Daten</td><td>IP-Adresse, Datum und Uhrzeit, aufgerufene Seite, Browser und Betriebssystem</td></tr>
+                <tr><td>Zweck</td><td>Auslieferung und Sicherheit der Website</td></tr>
+                <tr><td>Rechtsgrundlage</td><td>Art. 6 Abs. 1 lit. f DSGVO, berechtigtes Interesse an einem sicheren Betrieb</td></tr>
+                <tr><td>Drittland</td><td>USA, auf Grundlage des EU-US Data Privacy Framework</td></tr>
+                </tbody>
+            </table>
+        </div>
+        <p>Weitere Informationen stehen im <a href="https://docs.github.com/en/site-policy/privacy-policies/github-general-privacy-statement">GitHub General Privacy Statement</a>.</p>
+
+        <h2>Schriftarten und Suche</h2>
+        <p>Schriftarten und Suchindex liegen auf demselben Server wie die Seite. Die Suche läuft vollständig in deinem Browser, Suchbegriffe werden nicht übertragen.</p>
+
+        <h2>Externe Links</h2>
+        <p>Links zu GitHub und PyPI führen auf Seiten anderer Anbieter. Erst wenn du einen solchen Link öffnest, gelten deren Datenschutzbestimmungen.</p>
+
+        <h2>Deine Rechte</h2>
+        <ul>
+            <li>Auskunft über deine Daten (Art. 15 DSGVO)</li>
+            <li>Berichtigung (Art. 16 DSGVO) und Löschung (Art. 17 DSGVO)</li>
+            <li>Einschränkung der Verarbeitung (Art. 18 DSGVO)</li>
+            <li>Widerspruch gegen die Verarbeitung (Art. 21 DSGVO)</li>
+            <li>Beschwerde bei einer Aufsichtsbehörde (Art. 77 DSGVO), z. B. [zuständige Landesdatenschutzbehörde]</li>
+        </ul>
+
+        <hr />
+        <p class="text-sm text-kd-text-muted">Stand: 01.11.2026</p>
+    </LegalNotice>
+    <FooterBar />
+</BaseLayout>

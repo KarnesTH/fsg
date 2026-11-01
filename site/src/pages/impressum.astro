@@ -1,0 +1,41 @@
+---
+import FooterBar from "../components/FooterBar.astro";
+import LegalNotice from "../components/LegalNotice.astro";
+import NavbarDocs from "../components/NavbarDocs.astro";
+import BaseLayout from "../layouts/BaseLayout.astro";
+---
+
+<BaseLayout title="Impressum – fsg" description="Impressum der fsg-Dokumentation">
+    <NavbarDocs />
+    <LegalNotice active="impressum">
+        <h1>Impressum</h1>
+        <p class="kd-lead">Angaben gemäß § 5 DDG</p>
+
+        <h2>Anbieter</h2>
+        <p>Patrick Hähnel<br />Karnes Development<br />Am Rüsing 29<br />59555 Lippstadt<br />Deutschland</p>
+
+        <h2>Kontakt</h2>
+        <table>
+            <tbody>
+            <tr><td>E-Mail</td><td><a href="mailto:info@karnes-development.de">info@karnes-development.de</a></td></tr>
+            <tr><td>Telefon</td><td>+49 176 34682665</td></tr>
+            </tbody>
+        </table>
+
+        <h2>Umsatzsteuer</h2>
+        <p>Umsatzsteuer-Identifikationsnummer gemäß § 27a UStG: DE367118915</p>
+
+        <h2>Verantwortlich für den Inhalt</h2>
+        <p>Verantwortlich i. S. d. § 18 Abs. 2 MStV:<br />Patrick Hähnel, Anschrift wie oben</p>
+
+        <h2>Verbraucherstreitbeilegung</h2>
+        <p>Ich bin nicht bereit oder verpflichtet, an Streitbelegungsverfahren vor einer Verbraucherschlichtungsstelle teilzunehmen.</p>
+
+        <h2>Quellcode und Lizenz</h2>
+        <p>fsg ist freie Software unter der <a href="https://github.com/KarnesTH/fsg/blob/main/LICENSE">MIT-Lizenz</a>. Der Quellcode dieser Seite liegt im Ordner <code>site/</code> des <a href="https://github.com/KarnesTH/fsg">Repositorys</a>.</p>
+
+        <hr />
+        <p class="text-sm text-kd-text-muted">Stand: 01.11.2026</p>
+    </LegalNotice>
+    <FooterBar />
+</BaseLayout>
