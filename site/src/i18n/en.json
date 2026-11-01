@@ -102,6 +102,15 @@
             "Security": "Security"
         }
     },
+    "search": {
+        "placeholder": "Search the docs",
+        "pages": "Pages",
+        "sections": "Sections",
+        "empty": "No results",
+        "select": "Select",
+        "open": "Open",
+        "close": "Close"
+    },
     "footer": {
         "tagline": "Directory trees that respect .gitignore and keep your docs up to date.",
         "docs": "Docs",

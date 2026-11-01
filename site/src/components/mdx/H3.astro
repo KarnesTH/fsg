@@ -6,4 +6,4 @@ const locale = (Astro.currentLocale ?? "en") as Locale;
 const t = strings[locale];
 ---
 
-<h3 id={id}><a class="kd-anchor" href={`#${id}`} aria-label={t.docs.anchor}>#</a><slot /></h3>
+<h3 id={id}><a class="kd-anchor" data-pagefind-ignore="all" href={`#${id}`} aria-label={t.docs.anchor}>#</a><slot /></h3>

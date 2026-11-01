@@ -1,6 +1,7 @@
 ---
 import { getAbsoluteLocaleUrl } from "astro:i18n";
-import { strings } from "../i18n";
+import SearchDialog from "../components/SearchDialog.tsx";
+import { strings, type Locale } from "../i18n";
 import "../styles/global.css";
 
 interface Props {
@@ -10,7 +11,7 @@ interface Props {
 }
 
 const { title, description, path = "" } = Astro.props;
-const locale = Astro.currentLocale ?? "en";
+const locale = (Astro.currentLocale ?? "en") as Locale;
 ---
 
 <!doctype html>
@@ -29,6 +30,7 @@ const locale = Astro.currentLocale ?? "en";
     <div class="bg-kd-bg text-kd-text">
         <slot />
     </div>
+    <SearchDialog client:idle strings={strings[locale].search} base={import.meta.env.BASE_URL} />
     <script src="../scripts/code-copy.js"></script>
 </body>
 </html>

@@ -102,6 +102,15 @@
             "Security": "Sicherheit"
         }
     },
+    "search": {
+        "placeholder": "Doku durchsuchen",
+        "pages": "Seiten",
+        "sections": "Abschnitte",
+        "empty": "Keine Treffer",
+        "select": "Auswählen",
+        "open": "Öffnen",
+        "close": "Schließen"
+    },
     "footer": {
         "tagline": "Verzeichnisbäume, die .gitignore beachten und deine Doku aktuell halten.",
         "docs": "Doku",

@@ -3,6 +3,8 @@ import tailwindcss from "@tailwindcss/vite";
 
 import mdx from "@astrojs/mdx";
 
+import react from "@astrojs/react";
+
 export default defineConfig({
   site: "https://karnesth.github.io",
   base: "/fsg",
@@ -24,5 +26,5 @@ export default defineConfig({
       plugins: [tailwindcss()],
   },
 
-  integrations: [mdx()],
+  integrations: [mdx(), react()],
 });
