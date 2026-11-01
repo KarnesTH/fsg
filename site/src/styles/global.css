@@ -1,0 +1,34 @@
+@import "tailwindcss";
+@plugin "../../assets/js/kd-ui.js";
+
+@font-face {
+    font-family: "Geist Mono";
+    src: url("../../assets/fonts/geistmono/GeistMono-wght.ttf") format("truetype");
+    font-weight: 100 900;
+    font-style: normal;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: "Geist Mono";
+    src: url("../../assets/fonts/geistmono/GeistMono-Italic-wght.ttf") format("truetype");
+    font-weight: 100 900;
+    font-style: italic;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: "Geist";
+    src: url("../../assets/fonts/geist/Geist-wght.ttf") format("truetype");
+    font-weight: 100 900;
+    font-style: normal;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: "Geist";
+    src: url("../../assets/fonts/geist/Geist-Italic-wght.ttf") format("truetype");
+    font-weight: 100 900;
+    font-style: italic;
+    font-display: swap;
+}

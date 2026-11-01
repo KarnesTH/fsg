@@ -1,0 +1,24 @@
+---
+import { getRelativeLocaleUrl } from "astro:i18n";
+import { strings, type Locale } from "../i18n";
+import { latest } from "../lib/changelog";
+
+const locale = (Astro.currentLocale ?? "en") as Locale;
+const t = strings[locale];
+---
+
+<section class="kd-hero">
+    <div class="kd-hero-content">
+        <span class="kd-badge kd-badge-outline">v{latest.version} {t.home.badge} · <a class="text-kd-primary-hover" href={getRelativeLocaleUrl(locale, "changelog")}>{t.home.whatsNew}</a></span>
+        <h1 class="kd-hero-title">{t.home.title}</h1>
+        <p class="kd-hero-text">{t.home.description}</p>
+        <div class="kd-hero-actions">
+            <a class="kd-btn kd-btn-primary kd-btn-lg" href={getRelativeLocaleUrl(locale, "installation")}>{t.home.getStarted}<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l14 0" /><path d="M13 18l6 -6" /><path d="M13 6l6 6" /></svg></a>
+            <a class="kd-btn kd-btn-outline kd-btn-lg" href="https://github.com/KarnesTH/fsg"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 19c-4.3 1.4 -4.3 -2.5 -6 -3m12 5v-3.5c0 -1 .1 -1.4 -.5 -2c2.8 -.3 5.5 -1.4 5.5 -6a4.6 4.6 0 0 0 -1.3 -3.2a4.2 4.2 0 0 0 -.1 -3.2s-1.1 -.3 -3.5 1.3a12.3 12.3 0 0 0 -6.2 0c-2.4 -1.6 -3.5 -1.3 -3.5 -1.3a4.2 4.2 0 0 0 -.1 3.2a4.6 4.6 0 0 0 -1.3 3.2c0 4.6 2.7 5.7 5.5 6c-.6 .6 -.6 1.2 -.5 2v3.5" /></svg>{t.home.source}</a>
+        </div>
+        <div class="kd-code w-full max-w-md text-left">
+            <pre><span class="kd-code-prompt">$ </span>uv tool install fsg</pre>
+            <button class="kd-code-copy" type="button" aria-label={t.code.copy}><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 9.667a2.667 2.667 0 0 1 2.667 -2.667h8.666a2.667 2.667 0 0 1 2.667 2.667v8.666a2.667 2.667 0 0 1 -2.667 2.667h-8.666a2.667 2.667 0 0 1 -2.667 -2.667l0 -8.666" /><path d="M4.012 16.737a2.005 2.005 0 0 1 -1.012 -1.737v-10c0 -1.1 .9 -2 2 -2h10c.75 0 1.158 .385 1.5 1" /></svg></button>
+        </div>
+    </div>
+</section>

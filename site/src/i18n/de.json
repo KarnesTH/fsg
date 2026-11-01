@@ -1,0 +1,82 @@
+{
+    "language": {
+        "name": "Deutsch",
+        "label": "Sprache"
+    },
+    "nav": {
+        "docs": "Doku",
+        "changelog": "Changelog",
+        "search": "Suchen",
+        "searchKey": "Strg K",
+        "pypi": "fsg auf PyPI",
+        "github": "fsg auf GitHub"
+    },
+    "code": {
+        "copy": "Kopieren"
+    },
+    "home": {
+        "title": "fsg – Verzeichnisbäume, die deine Doku aktuell halten",
+        "description": "fsg erzeugt saubere Projektbäume, die .gitignore beachten, und hält sie in deiner README aktuell – mit Prüfung für die CI und einem Commit-Hook, der das für dich erledigt.",
+        "badge": "ist da",
+        "whatsNew": "Was ist neu?",
+        "getStarted": "Loslegen",
+        "source": "Quellcode",
+        "cards": {
+            "installation": {
+                "title": "Installation",
+                "text": "Mit uv oder pipx installieren oder einmalig mit uvx starten."
+            },
+            "usage": {
+                "title": "Nutzung",
+                "text": "Alle Optionen, Filter und Exit-Codes der Kommandozeile."
+            },
+            "markers": {
+                "title": "Marker & Abschnitte",
+                "text": "Einen oder mehrere Bäume in der README aktuell halten."
+            },
+            "recipes": {
+                "title": "Rezepte",
+                "text": "CI-Prüfung, pre-commit, Monorepos und mehr zum Kopieren."
+            }
+        },
+        "example": {
+            "eyebrow": "Ein Beispiel",
+            "title": "Zwei Marker, ein Befehl",
+            "text": "Setz die Marker dorthin, wo der Baum stehen soll, und führe fsg --update README.md aus. Optionen im Start-Marker gelten nur für diesen Baum, Kommentare neben einem Eintrag bleiben bei jedem Update erhalten.",
+            "link": "Marker & Abschnitte"
+        },
+        "features": {
+            "gitignore": {
+                "title": "Beachtet .gitignore",
+                "text": "In einem Git-Repository erscheinen nur Dateien, die git verfolgt oder verfolgen würde. Außerhalb werden Build- und Tool-Ordner wie .venv, node_modules oder target übersprungen."
+            },
+            "current": {
+                "title": "Nie veraltet",
+                "text": "--update schreibt den markierten Block neu, --check lässt die CI bei veraltetem Baum scheitern und --setup-hook aktualisiert bei jedem Commit."
+            },
+            "dependencies": {
+                "title": "Keine Abhängigkeiten",
+                "text": "Reines Python 3.11+, MIT-lizenziert. Läuft mit uvx unter Linux, macOS und Windows, ohne dass du etwas anderes installieren musst."
+            }
+        },
+        "help": {
+            "title": "Fehler gefunden oder fehlt eine Option?",
+            "text": "Eröffne ein Issue auf GitHub. Pull Requests sind willkommen, Übersetzungen dieser Doku auch.",
+            "issue": "Issue eröffnen",
+            "contribute": "Mitmachen"
+        }
+    },
+    "footer": {
+        "tagline": "Verzeichnisbäume, die .gitignore beachten und deine Doku aktuell halten.",
+        "docs": "Doku",
+        "project": "Projekt",
+        "legal": "Rechtliches",
+        "installation": "Installation",
+        "usage": "Nutzung",
+        "configuration": "Konfiguration",
+        "changelog": "Changelog",
+        "imprint": "Impressum",
+        "privacy": "Datenschutz",
+        "license": "MIT-Lizenz"
+    }
+}

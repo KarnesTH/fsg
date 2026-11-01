@@ -1,0 +1,82 @@
+{
+    "language": {
+        "name": "English",
+        "label": "Language"
+    },
+    "nav": {
+        "docs": "Docs",
+        "changelog": "Changelog",
+        "search": "Search",
+        "searchKey": "Ctrl K",
+        "pypi": "fsg on PyPI",
+        "github": "fsg on GitHub"
+    },
+    "code": {
+        "copy": "Copy"
+    },
+    "home": {
+        "title": "fsg – directory trees that keep your docs up to date",
+        "description": "fsg prints clean project trees that respect .gitignore and keeps them current in your README – with a check for CI and a commit hook that does it for you.",
+        "badge": "is out",
+        "whatsNew": "What's new?",
+        "getStarted": "Get started",
+        "source": "Source",
+        "cards": {
+            "installation": {
+                "title": "Installation",
+                "text": "Install with uv or pipx, or run it once with uvx."
+            },
+            "usage": {
+                "title": "Usage",
+                "text": "Every option, filter and exit code of the command line."
+            },
+            "markers": {
+                "title": "Markers & sections",
+                "text": "Keep one or several trees inside your README up to date."
+            },
+            "recipes": {
+                "title": "Recipes",
+                "text": "CI checks, pre-commit, monorepos and more, ready to copy."
+            }
+        },
+        "example": {
+            "eyebrow": "An example",
+            "title": "Two markers, one command",
+            "text": "Put the markers where the tree belongs and run fsg --update README.md. Options in the start marker apply to that tree only, and comments next to an entry survive every update.",
+            "link": "Markers & sections"
+        },
+        "features": {
+            "gitignore": {
+                "title": "Respects .gitignore",
+                "text": "Inside a git repository only files git tracks or would track are listed. Outside, build and tool directories like .venv, node_modules or target are skipped."
+            },
+            "current": {
+                "title": "Never out of date",
+                "text": "--update rewrites the marked block, --check fails CI when it is outdated and --setup-hook runs the update on every commit."
+            },
+            "dependencies": {
+                "title": "No dependencies",
+                "text": "Pure Python 3.11+, MIT licensed. Runs with uvx on Linux, macOS and Windows without installing anything else."
+            }
+        },
+        "help": {
+            "title": "Found a bug or missing an option?",
+            "text": "Open an issue on GitHub. Pull requests are welcome, translations of these docs too.",
+            "issue": "Open an issue",
+            "contribute": "Contribute"
+        }
+    },
+    "footer": {
+        "tagline": "Directory trees that respect .gitignore and keep your docs up to date.",
+        "docs": "Docs",
+        "project": "Project",
+        "legal": "Legal",
+        "installation": "Installation",
+        "usage": "Usage",
+        "configuration": "Configuration",
+        "changelog": "Changelog",
+        "imprint": "Impressum",
+        "privacy": "Datenschutz",
+        "license": "MIT License"
+    }
+}

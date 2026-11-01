@@ -1,0 +1,43 @@
+---
+import { getRelativeLocaleUrl } from "astro:i18n";
+import { strings, type Locale } from "../i18n";
+
+const locale = (Astro.currentLocale ?? "en") as Locale;
+const t = strings[locale];
+const base = import.meta.env.BASE_URL;
+---
+
+<footer>
+    <div class="kd-footer">
+        <nav>
+            <a class="kd-navbar-brand" href={getRelativeLocaleUrl(locale, "")}>
+                <img src={`${base}/logo.svg`} width="28" height="28" alt="" />
+                fsg
+            </a>
+            <p class="m-0 leading-relaxed">{t.footer.tagline}</p>
+        </nav>
+        <nav>
+            <span class="kd-footer-title">{t.footer.docs}</span>
+            <a href={getRelativeLocaleUrl(locale, "installation")}>{t.footer.installation}</a>
+            <a href={getRelativeLocaleUrl(locale, "usage")}>{t.footer.usage}</a>
+            <a href={getRelativeLocaleUrl(locale, "configuration")}>{t.footer.configuration}</a>
+        </nav>
+        <nav>
+            <span class="kd-footer-title">{t.footer.project}</span>
+            <a href="https://github.com/KarnesTH/fsg">GitHub</a>
+            <a href="https://pypi.org/project/fsg/">PyPI</a>
+            <a href={getRelativeLocaleUrl(locale, "changelog")}>{t.footer.changelog}</a>
+        </nav>
+        <nav>
+            <span class="kd-footer-title">{t.footer.legal}</span>
+            <a href={`${base}/impressum/`} hreflang="de">{t.footer.imprint}</a>
+            <a href={`${base}/datenschutz/`} hreflang="de">{t.footer.privacy}</a>
+        </nav>
+    </div>
+    <div class="kd-footer-bar">
+        <span>© 2026 Patrick Hähnel · {t.footer.license}</span>
+        <a class="kd-btn kd-btn-ghost kd-btn-square kd-btn-sm" href="https://github.com/KarnesTH/fsg" aria-label={t.nav.github}>
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 19c-4.3 1.4 -4.3 -2.5 -6 -3m12 5v-3.5c0 -1 .1 -1.4 -.5 -2c2.8 -.3 5.5 -1.4 5.5 -6a4.6 4.6 0 0 0 -1.3 -3.2a4.2 4.2 0 0 0 -.1 -3.2s-1.1 -.3 -3.5 1.3a12.3 12.3 0 0 0 -6.2 0c-2.4 -1.6 -3.5 -1.3 -3.5 -1.3a4.2 4.2 0 0 0 -.1 3.2a4.6 4.6 0 0 0 -1.3 3.2c0 4.6 2.7 5.7 5.5 6c-.6 .6 -.6 1.2 -.5 2v3.5" /></svg>
+        </a>
+    </div>
+</footer>

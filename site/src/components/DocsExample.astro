@@ -1,0 +1,37 @@
+---
+import { getRelativeLocaleUrl } from "astro:i18n";
+import { strings, type Locale } from "../i18n";
+
+const locale = (Astro.currentLocale ?? "en") as Locale;
+const t = strings[locale];
+const tree = [
+    "src/",
+    "└── fsg/",
+    "    ├── hooks/  # commit hook setup",
+    "    └── trees/  # git and plain directory walk",
+];
+---
+
+<section class="border-y border-kd-border bg-kd-surface">
+    <div class="mx-auto grid max-w-6xl items-center gap-10 px-6 py-16 lg:grid-cols-2">
+        <div class="flex flex-col gap-4">
+            <span class="kd-eyebrow">{t.home.example.eyebrow}</span>
+            <h2 class="m-0 text-3xl font-semibold tracking-tight">{t.home.example.title}</h2>
+            <p class="m-0 leading-relaxed text-kd-text-muted">{t.home.example.text}</p>
+            <a class="kd-btn kd-btn-link self-start px-0" href={getRelativeLocaleUrl(locale, "markers")}>{t.home.example.link}<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l14 0" /><path d="M13 18l6 -6" /><path d="M13 6l6 6" /></svg></a>
+        </div>
+        <div class="kd-code">
+            <div class="kd-code-header"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 3v4a1 1 0 0 0 1 1h4" /><path d="M17 21h-10a2 2 0 0 1 -2 -2v-14a2 2 0 0 1 2 -2h7l5 5v11a2 2 0 0 1 -2 2" /><path d="M9 9l1 0" /><path d="M9 13l6 0" /><path d="M9 17l6 0" /></svg>README.md</div>
+            <div class="kd-code-lines">
+                <span class="kd-code-line">## Project structure</span>
+                <span class="kd-code-line"></span>
+                <span class="kd-code-line kd-code-comment">&lt;!-- fsg:start path=src dirs-only --&gt;</span>
+                <span class="kd-code-line">```plaintext</span>
+                {tree.map((line) => <span class="kd-code-line">{line}</span>)}
+                <span class="kd-code-line">```</span>
+                <span class="kd-code-line kd-code-comment">&lt;!-- fsg:end --&gt;</span>
+            </div>
+            <button class="kd-code-copy" type="button" aria-label={t.code.copy}><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 9.667a2.667 2.667 0 0 1 2.667 -2.667h8.666a2.667 2.667 0 0 1 2.667 2.667v8.666a2.667 2.667 0 0 1 -2.667 2.667h-8.666a2.667 2.667 0 0 1 -2.667 -2.667l0 -8.666" /><path d="M4.012 16.737a2.005 2.005 0 0 1 -1.012 -1.737v-10c0 -1.1 .9 -2 2 -2h10c.75 0 1.158 .385 1.5 1" /></svg></button>
+        </div>
+    </div>
+</section>

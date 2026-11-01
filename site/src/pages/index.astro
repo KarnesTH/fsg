@@ -1,0 +1,23 @@
+---
+import DocsExample from "../components/DocsExample.astro";
+import DocsFeatures from "../components/DocsFeatures.astro";
+import DocsHelp from "../components/DocsHelp.astro";
+import DocsLinks from "../components/DocsLinks.astro";
+import Footer from "../components/Footer.astro";
+import HeroDocs from "../components/HeroDocs.astro";
+import NavbarDocs from "../components/NavbarDocs.astro";
+import { strings } from "../i18n";
+import BaseLayout from "../layouts/BaseLayout.astro";
+
+const { home } = strings.en;
+---
+
+<BaseLayout title={home.title} description={home.description}>
+    <NavbarDocs />
+    <HeroDocs />
+    <DocsLinks />
+    <DocsExample />
+    <DocsFeatures />
+    <DocsHelp />
+    <Footer />
+</BaseLayout>
