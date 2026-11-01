@@ -1,0 +1,97 @@
+---
+import type { MarkdownHeading } from "astro";
+import { render } from "astro:content";
+import { getRelativeLocaleUrl } from "astro:i18n";
+import DocsPager from "../components/DocsPager.astro";
+import DocsSidebar from "../components/DocsSidebar.astro";
+import DocsToc from "../components/DocsToc.astro";
+import FooterBar from "../components/FooterBar.astro";
+import NavbarDocs from "../components/NavbarDocs.astro";
+import Alert from "../components/mdx/Alert.astro";
+import Card from "../components/mdx/Card.astro";
+import Cards from "../components/mdx/Cards.astro";
+import CodeBlock from "../components/mdx/CodeBlock.astro";
+import H2 from "../components/mdx/H2.astro";
+import H3 from "../components/mdx/H3.astro";
+import Step from "../components/mdx/Step.astro";
+import Steps from "../components/mdx/Steps.astro";
+import TableWrap from "../components/mdx/TableWrap.astro";
+import Tabs from "../components/mdx/Tabs.astro";
+import { strings, type Locale } from "../i18n";
+import { docsFor, sections, slugOf, type Doc, type Section } from "../lib/docs";
+import BaseLayout from "./BaseLayout.astro";
+
+interface Props {
+    doc: Doc;
+}
+
+const { doc } = Astro.props;
+const rendered = await render(doc);
+const Content = rendered.Content;
+const headings: MarkdownHeading[] = rendered.headings;
+const components = { pre: CodeBlock, h2: H2, h3: H3, table: TableWrap, Alert, Card, Cards, Step, Steps, Tabs };
+const locale = (Astro.currentLocale ?? "en") as Locale;
+const t = strings[locale];
+const slug = slugOf(doc);
+const section = doc.data.section as Section;
+const docs = await docsFor(locale);
+const sectionStart = docs.find((entry) => entry.data.section === section) ?? doc;
+const updated = new Intl.DateTimeFormat(locale, { dateStyle: "medium" }).format(doc.data.updated);
+---
+
+<BaseLayout title={`${doc.data.title} – fsg`} description={doc.data.description} path={slug}>
+    <NavbarDocs active="docs" path={slug} />
+    <div class="mx-auto grid max-w-360 lg:grid-cols-[260px_minmax(0,1fr)] xl:grid-cols-[260px_minmax(0,1fr)_220px]">
+        <DocsSidebar active={slug} />
+
+        <main class="min-w-0 px-6 py-10 lg:px-12">
+            <div class="mb-6 flex items-center justify-between gap-3 lg:hidden">
+                <details class="kd-dropdown">
+                    <summary class="kd-btn kd-btn-outline kd-btn-sm"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6l16 0" /><path d="M4 12l16 0" /><path d="M4 18l16 0" /></svg>{t.docs.navigation}</summary>
+                    <ul class="kd-dropdown-content kd-menu">
+                        {sections.map((section) => (
+                            <>
+                                <li class="kd-menu-title">{t.docs.sections[section]}</li>
+                                {docs.filter((entry) => entry.data.section === section).map((entry) => (
+                                    <li><a class:list={[{ "kd-active": slugOf(entry) === slug }]} href={getRelativeLocaleUrl(locale, slugOf(entry))}>{entry.data.title}</a></li>
+                                ))}
+                            </>
+                        ))}
+                    </ul>
+                </details>
+                <details class="kd-dropdown kd-dropdown-end">
+                    <summary class="kd-btn kd-btn-ghost kd-btn-sm">{t.docs.onThisPage}<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6l6 -6" /></svg></summary>
+                    <ul class="kd-dropdown-content kd-menu">
+                        {headings.filter((heading: MarkdownHeading) => heading.depth === 2).map((heading) => (
+                            <li><a href={`#${heading.slug}`}>{heading.text}</a></li>
+                        ))}
+                    </ul>
+                </details>
+            </div>
+
+            <nav class="kd-breadcrumbs mb-6" aria-label={t.docs.breadcrumb}>
+                <ol>
+                    <li><a href={getRelativeLocaleUrl(locale, "")}>{t.docs.root}</a></li>
+                    <li><a href={getRelativeLocaleUrl(locale, slugOf(sectionStart))}>{t.docs.sections[section]}</a></li>
+                    <li>{doc.data.title}</li>
+                </ol>
+            </nav>
+
+            <article class="kd-prose" data-pagefind-body>
+                <h1>{doc.data.title}</h1>
+                <p class="kd-lead">{doc.data.description}</p>
+                <Content components={components} />
+            </article>
+
+            <div class="mt-12 flex max-w-[72ch] flex-wrap items-center justify-between gap-3 text-kd-text-muted">
+                <span class="text-sm">{t.docs.updated}: <time datetime={doc.data.updated.toISOString().slice(0, 10)}>{updated}</time></span>
+                <a class="kd-btn kd-btn-link kd-btn-sm" href={`https://github.com/KarnesTH/fsg/edit/main/site/src/content/docs/${doc.id}.mdx`}><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20h4l10.5 -10.5a2.828 2.828 0 1 0 -4 -4l-10.5 10.5v4" /><path d="M13.5 6.5l4 4" /></svg>{t.docs.edit}</a>
+            </div>
+
+            <DocsPager active={slug} />
+        </main>
+
+        <DocsToc headings={headings} />
+    </div>
+    <FooterBar />
+</BaseLayout>

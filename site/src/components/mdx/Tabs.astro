@@ -1,0 +1,26 @@
+---
+import { strings, type Locale } from "../../i18n";
+
+interface Props {
+    labels: string[];
+}
+
+const { labels } = Astro.props;
+const locale = (Astro.currentLocale ?? "en") as Locale;
+const t = strings[locale];
+const html = await Astro.slots.render("default");
+const blocks = [...html.matchAll(/<pre[^>]*>[\s\S]*?<\/pre>/g)].map((match) => match[0]);
+const group = `tabs-${labels.join("-").toLowerCase().replace(/[^a-z0-9-]/g, "")}-${Math.random().toString(36).slice(2, 8)}`;
+---
+
+<div class="kd-code">
+    <div class="kd-tabs kd-code-tabs" role="tablist">
+        {labels.map((label, index) => (
+            <>
+                <input class="kd-tab" type="radio" name={group} aria-label={label} checked={index === 0} />
+                <div class="kd-tab-content" set:html={blocks[index] ?? ""} />
+            </>
+        ))}
+    </div>
+    <button class="kd-code-copy" type="button" aria-label={t.code.copy}><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 9.667a2.667 2.667 0 0 1 2.667 -2.667h8.666a2.667 2.667 0 0 1 2.667 2.667v8.666a2.667 2.667 0 0 1 -2.667 2.667h-8.666a2.667 2.667 0 0 1 -2.667 -2.667l0 -8.666" /><path d="M4.012 16.737a2.005 2.005 0 0 1 -1.012 -1.737v-10c0 -1.1 .9 -2 2 -2h10c.75 0 1.158 .385 1.5 1" /></svg></button>
+</div>

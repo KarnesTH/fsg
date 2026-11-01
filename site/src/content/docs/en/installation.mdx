@@ -1,0 +1,93 @@
+---
+title: Installation
+description: Install fsg as a standalone tool, or run it once without installing anything.
+section: getting-started
+order: 1
+updated: 2026-11-01
+---
+
+<Alert title="Note">fsg has no dependencies. git is optional and only needed to respect `.gitignore`.</Alert>
+
+## Requirements
+
+- Python `3.11` or newer
+- [uv](https://docs.astral.sh/uv/) or [pipx](https://pipx.pypa.io/)
+- git, optional, for `.gitignore` support
+
+## Install
+
+<Steps>
+<Step title="Install the tool">
+
+<Tabs labels={["uv", "pipx", "pip"]}>
+
+```console
+$ uv tool install fsg
+```
+
+```console
+$ pipx install fsg
+```
+
+```console
+$ pip install fsg
+```
+
+</Tabs>
+
+</Step>
+<Step title="Check the version">
+
+```console
+$ fsg --version
+fsg 0.4.0
+```
+
+</Step>
+<Step title="Print your first tree">
+
+Run fsg in your project. Without a path it renders the current directory.
+
+```console
+$ fsg --depth 1 --no-fence
+fsg/
+├── .github/
+├── assets/
+├── docs/
+├── site/
+├── src/
+├── tests/
+├── .gitattributes
+├── .gitignore
+├── .pre-commit-hooks.yaml
+├── CHANGELOG.md
+├── LICENSE
+├── pyproject.toml
+└── README.md
+```
+
+</Step>
+</Steps>
+
+## Run without installing
+
+uvx downloads fsg into a cache and runs it. This also works on Windows and in CI.
+
+```console
+$ uvx fsg --check README.md
+```
+
+## Update and remove
+
+| Installed with | Update                | Remove                  |
+|----------------|-----------------------|-------------------------|
+| uv             | `uv tool upgrade fsg` | `uv tool uninstall fsg` |
+| pipx           | `pipx upgrade fsg`    | `pipx uninstall fsg`    |
+| pip            | `pip install -U fsg`  | `pip uninstall fsg`     |
+
+## Next steps
+
+<Cards>
+<Card slug="usage" title="Usage">Shape the tree with depth, filters and styles.</Card>
+<Card slug="markers" title="Markers & sections">Keep the tree in your README up to date.</Card>
+</Cards>

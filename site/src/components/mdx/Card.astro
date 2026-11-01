@@ -1,0 +1,18 @@
+---
+import { getRelativeLocaleUrl } from "astro:i18n";
+
+interface Props {
+    slug: string;
+    title: string;
+}
+
+const { slug, title } = Astro.props;
+const locale = Astro.currentLocale ?? "en";
+---
+
+<a class="kd-card kd-card-hover no-underline!" href={getRelativeLocaleUrl(locale, slug)}>
+    <div class="kd-card-body">
+        <span class="kd-card-title">{title}</span>
+        <p><slot /></p>
+    </div>
+</a>

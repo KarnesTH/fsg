@@ -1,0 +1,11 @@
+---
+import DocsLayout from "../layouts/DocsLayout.astro";
+import { docsFor, slugOf, type Doc } from "../lib/docs";
+
+export const getStaticPaths = async () =>
+    (await docsFor("en")).map((doc) => ({ params: { slug: slugOf(doc) }, props: { doc } }));
+
+const { doc } = Astro.props as { doc: Doc };
+---
+
+<DocsLayout doc={doc} />

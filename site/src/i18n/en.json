@@ -66,6 +66,25 @@
             "contribute": "Contribute"
         }
     },
+    "docs": {
+        "root": "Docs",
+        "sections": {
+            "getting-started": "Getting started",
+            "guides": "Guides",
+            "project": "Project"
+        },
+        "issues": "Issues",
+        "navigation": "Navigation",
+        "onThisPage": "On this page",
+        "breadcrumb": "Breadcrumb",
+        "pageNavigation": "Page navigation",
+        "previous": "Previous",
+        "next": "Next",
+        "home": "Home",
+        "updated": "Last updated",
+        "edit": "Edit this page",
+        "anchor": "Link to this heading"
+    },
     "footer": {
         "tagline": "Directory trees that respect .gitignore and keep your docs up to date.",
         "docs": "Docs",

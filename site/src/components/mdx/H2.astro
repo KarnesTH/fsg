@@ -1,0 +1,9 @@
+---
+import { strings, type Locale } from "../../i18n";
+
+const { id } = Astro.props;
+const locale = (Astro.currentLocale ?? "en") as Locale;
+const t = strings[locale];
+---
+
+<h2 id={id}><a class="kd-anchor" href={`#${id}`} aria-label={t.docs.anchor}>#</a><slot /></h2>

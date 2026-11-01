@@ -1,0 +1,36 @@
+---
+import type { MarkdownHeading } from "astro";
+import { strings, type Locale } from "../i18n";
+
+interface Props {
+    headings: MarkdownHeading[];
+}
+
+const { headings } = Astro.props;
+const locale = (Astro.currentLocale ?? "en") as Locale;
+const t = strings[locale];
+const tree: (MarkdownHeading & { children: MarkdownHeading[] })[] = [];
+for (const heading of headings) {
+    if (heading.depth === 2) tree.push({ ...heading, children: [] });
+    else if (heading.depth === 3 && tree.length > 0) tree[tree.length - 1].children.push(heading);
+}
+---
+
+<aside class="hidden px-4 py-10 xl:block">
+    <nav class="kd-toc sticky top-6" aria-label={t.docs.onThisPage}>
+        <span class="kd-toc-title">{t.docs.onThisPage}</span>
+        <ul>
+            {tree.map((heading) => (
+                <li>
+                    <a href={`#${heading.slug}`}>{heading.text}</a>
+                    {heading.children.length > 0 && (
+                        <ul>
+                            {heading.children.map((child) => <li><a href={`#${child.slug}`}>{child.text}</a></li>)}
+                        </ul>
+                    )}
+                </li>
+            ))}
+        </ul>
+    </nav>
+</aside>
+<script src="../scripts/toc-spy.js"></script>

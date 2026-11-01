@@ -1,0 +1,40 @@
+---
+import { getRelativeLocaleUrl } from "astro:i18n";
+import { strings, type Locale } from "../i18n";
+import { docsFor, sections, slugOf } from "../lib/docs";
+
+interface Props {
+    active: string;
+}
+
+const { active } = Astro.props;
+const locale = (Astro.currentLocale ?? "en") as Locale;
+const t = strings[locale];
+const docs = await docsFor(locale);
+---
+
+<aside class="hidden border-r border-kd-border px-4 py-6 lg:block">
+    <ul class="kd-tree">
+        {sections.map((section) => (
+            <li>
+                <details open>
+                    <summary>{t.docs.sections[section]}</summary>
+                    <ul>
+                        {docs.filter((doc) => doc.data.section === section).map((doc) => (
+                            <li><a class:list={["kd-tree-item", { "kd-active": slugOf(doc) === active }]} href={getRelativeLocaleUrl(locale, slugOf(doc))}>{doc.data.title}</a></li>
+                        ))}
+                    </ul>
+                </details>
+            </li>
+        ))}
+        <li>
+            <details open>
+                <summary>{t.docs.sections.project}</summary>
+                <ul>
+                    <li><a class:list={["kd-tree-item", { "kd-active": active === "changelog" }]} href={getRelativeLocaleUrl(locale, "changelog")}>{t.nav.changelog}</a></li>
+                    <li><a class="kd-tree-item" href="https://github.com/KarnesTH/fsg/issues">{t.docs.issues}<svg class="ml-auto text-kd-text-faint" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 6h-6a2 2 0 0 0 -2 2v10a2 2 0 0 0 2 2h10a2 2 0 0 0 2 -2v-6" /><path d="M11 13l9 -9" /><path d="M15 4h5v5" /></svg></a></li>
+                </ul>
+            </details>
+        </li>
+    </ul>
+</aside>

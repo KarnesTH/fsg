@@ -66,6 +66,25 @@
             "contribute": "Mitmachen"
         }
     },
+    "docs": {
+        "root": "Doku",
+        "sections": {
+            "getting-started": "Erste Schritte",
+            "guides": "Anleitungen",
+            "project": "Projekt"
+        },
+        "issues": "Issues",
+        "navigation": "Navigation",
+        "onThisPage": "Auf dieser Seite",
+        "breadcrumb": "Pfad",
+        "pageNavigation": "Seitennavigation",
+        "previous": "Zurück",
+        "next": "Weiter",
+        "home": "Startseite",
+        "updated": "Zuletzt aktualisiert",
+        "edit": "Seite bearbeiten",
+        "anchor": "Link zu dieser Überschrift"
+    },
     "footer": {
         "tagline": "Verzeichnisbäume, die .gitignore beachten und deine Doku aktuell halten.",
         "docs": "Doku",

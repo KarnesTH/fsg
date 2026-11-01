@@ -1,0 +1,36 @@
+---
+import { getRelativeLocaleUrl } from "astro:i18n";
+import { strings, type Locale } from "../i18n";
+import { docsFor, slugOf } from "../lib/docs";
+
+interface Props {
+    active: string;
+}
+
+const { active } = Astro.props;
+const locale = (Astro.currentLocale ?? "en") as Locale;
+const t = strings[locale];
+const docs = await docsFor(locale);
+const index = docs.findIndex((doc) => slugOf(doc) === active);
+const previous = index > 0
+    ? { href: getRelativeLocaleUrl(locale, slugOf(docs[index - 1])), title: docs[index - 1].data.title }
+    : { href: getRelativeLocaleUrl(locale, ""), title: t.docs.home };
+const next = index < docs.length - 1
+    ? { href: getRelativeLocaleUrl(locale, slugOf(docs[index + 1])), title: docs[index + 1].data.title }
+    : { href: getRelativeLocaleUrl(locale, "changelog"), title: t.nav.changelog };
+---
+
+<nav class="mt-6 grid max-w-[72ch] gap-4 border-t border-kd-border pt-6 md:grid-cols-2" aria-label={t.docs.pageNavigation}>
+    <a class="kd-card kd-card-hover no-underline" href={previous.href}>
+        <div class="kd-card-body gap-1">
+            <span class="flex items-center gap-1 text-xs text-kd-text-muted"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l14 0" /><path d="M5 12l6 6" /><path d="M5 12l6 -6" /></svg>{t.docs.previous}</span>
+            <span class="font-medium text-kd-text">{previous.title}</span>
+        </div>
+    </a>
+    <a class="kd-card kd-card-hover no-underline" href={next.href}>
+        <div class="kd-card-body items-end gap-1 text-right">
+            <span class="flex items-center gap-1 text-xs text-kd-text-muted">{t.docs.next}<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l14 0" /><path d="M13 18l6 -6" /><path d="M13 6l6 6" /></svg></span>
+            <span class="font-medium text-kd-text">{next.title}</span>
+        </div>
+    </a>
+</nav>

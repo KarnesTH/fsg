@@ -1,0 +1,93 @@
+---
+title: Installation
+description: Installiere fsg als eigenständiges Tool oder starte es einmalig, ohne etwas zu installieren.
+section: getting-started
+order: 1
+updated: 2026-11-01
+---
+
+<Alert title="Hinweis">fsg hat keine Abhängigkeiten. git ist optional und wird nur gebraucht, um `.gitignore` zu beachten.</Alert>
+
+## Voraussetzungen
+
+- Python `3.11` oder neuer
+- [uv](https://docs.astral.sh/uv/) oder [pipx](https://pipx.pypa.io/)
+- git, optional, für die Unterstützung von `.gitignore`
+
+## Installieren
+
+<Steps>
+<Step title="Tool installieren">
+
+<Tabs labels={["uv", "pipx", "pip"]}>
+
+```console
+$ uv tool install fsg
+```
+
+```console
+$ pipx install fsg
+```
+
+```console
+$ pip install fsg
+```
+
+</Tabs>
+
+</Step>
+<Step title="Version prüfen">
+
+```console
+$ fsg --version
+fsg 0.4.0
+```
+
+</Step>
+<Step title="Ersten Baum ausgeben">
+
+Führe fsg in deinem Projekt aus. Ohne Pfad wird das aktuelle Verzeichnis ausgegeben.
+
+```console
+$ fsg --depth 1 --no-fence
+fsg/
+├── .github/
+├── assets/
+├── docs/
+├── site/
+├── src/
+├── tests/
+├── .gitattributes
+├── .gitignore
+├── .pre-commit-hooks.yaml
+├── CHANGELOG.md
+├── LICENSE
+├── pyproject.toml
+└── README.md
+```
+
+</Step>
+</Steps>
+
+## Ohne Installation ausführen
+
+uvx lädt fsg in einen Cache und startet es. Das funktioniert auch unter Windows und in der CI.
+
+```console
+$ uvx fsg --check README.md
+```
+
+## Aktualisieren und entfernen
+
+| Installiert mit | Aktualisieren         | Entfernen               |
+|-----------------|-----------------------|-------------------------|
+| uv              | `uv tool upgrade fsg` | `uv tool uninstall fsg` |
+| pipx            | `pipx upgrade fsg`    | `pipx uninstall fsg`    |
+| pip             | `pip install -U fsg`  | `pip uninstall fsg`     |
+
+## Nächste Schritte
+
+<Cards>
+<Card slug="usage" title="Nutzung">Den Baum mit Tiefe, Filtern und Stilen anpassen.</Card>
+<Card slug="markers" title="Marker & Abschnitte">Den Baum in deiner README aktuell halten.</Card>
+</Cards>
