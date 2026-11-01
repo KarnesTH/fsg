@@ -1,0 +1,167 @@
+---
+title: Stile
+description: Wähl mit --style einen von fünf eingebauten Stilen oder ersetze einzelne Zeichen durch eigene.
+section: guides
+order: 3
+updated: 2026-11-01
+---
+
+## Eingebaute Stile
+
+Jedes Beispiel zeigt `fsg src/fsg -i "*hook.py" -i "*project_tree.py" --style NAME`.
+
+<div class="grid gap-4 md:grid-cols-2">
+
+<CodeFile name="unicode (Standard)">
+
+```plaintext
+fsg/
+├── hooks/
+│   ├── git_hook.py
+│   ├── hook.py
+│   └── pre_commit_hook.py
+└── trees/
+    ├── git_project_tree.py
+    ├── plain_project_tree.py
+    └── project_tree.py
+```
+
+</CodeFile>
+
+<CodeFile name="rounded">
+
+```plaintext
+fsg/
+├── hooks/
+│   ├── git_hook.py
+│   ├── hook.py
+│   ╰── pre_commit_hook.py
+╰── trees/
+    ├── git_project_tree.py
+    ├── plain_project_tree.py
+    ╰── project_tree.py
+```
+
+</CodeFile>
+
+<CodeFile name="heavy">
+
+```plaintext
+fsg/
+┣━━ hooks/
+┃   ┣━━ git_hook.py
+┃   ┣━━ hook.py
+┃   ┗━━ pre_commit_hook.py
+┗━━ trees/
+    ┣━━ git_project_tree.py
+    ┣━━ plain_project_tree.py
+    ┗━━ project_tree.py
+```
+
+</CodeFile>
+
+<CodeFile name="double">
+
+```plaintext
+fsg/
+╠══ hooks/
+║   ╠══ git_hook.py
+║   ╠══ hook.py
+║   ╚══ pre_commit_hook.py
+╚══ trees/
+    ╠══ git_project_tree.py
+    ╠══ plain_project_tree.py
+    ╚══ project_tree.py
+```
+
+</CodeFile>
+
+<CodeFile name="ascii">
+
+```plaintext
+fsg/
+|-- hooks/
+|   |-- git_hook.py
+|   |-- hook.py
+|   `-- pre_commit_hook.py
+`-- trees/
+    |-- git_project_tree.py
+    |-- plain_project_tree.py
+    `-- project_tree.py
+```
+
+</CodeFile>
+
+</div>
+
+## Eigene Zeichen
+
+Ein Stil hat vier Zeichen. `--glyph KEY=VALUE` ersetzt eines davon, aufbauend auf dem gewählten Stil:
+
+| Schlüssel | Wofür                                                      | unicode          |
+|-----------|------------------------------------------------------------|------------------|
+| `branch`  | Jeder Eintrag außer dem letzten eines Verzeichnisses       | `├── `           |
+| `last`    | Der letzte Eintrag eines Verzeichnisses                    | `└── `           |
+| `pipe`    | Die Linie unter einem Eintrag, der weitere Geschwister hat | `│   `           |
+| `space`   | Die Einrückung unter einem letzten Eintrag                 | vier Leerzeichen |
+
+<Tabs labels={["Kommandozeile", "pyproject.toml"]}>
+
+```console
+$ fsg src/fsg -i "*hook.py" -i "*project_tree.py" --no-fence --glyph branch="+-- " --glyph last="\\-- " --glyph pipe=":   "
+fsg/
++-- hooks/
+:   +-- git_hook.py
+:   +-- hook.py
+:   \-- pre_commit_hook.py
+\-- trees/
+    +-- git_project_tree.py
+    +-- plain_project_tree.py
+    \-- project_tree.py
+```
+
+```toml
+[tool.fsg.glyphs]
+branch = "+-- "
+last = "\\-- "
+pipe = ":   "
+```
+
+</Tabs>
+
+<Alert type="warning" title="Gleiche Breite für alle">Alle vier Zeichen müssen gleich breit sein, sonst bricht fsg mit einem Fehler ab.</Alert>
+
+```console
+$ fsg --glyph branch="+- "
+✖ glyphs must all have the same width (branch=3, last=4, pipe=4, space=4)
+  hint: pad the shorter glyphs with spaces, e.g. --glyph pipe="|   "
+```
+
+## Zusammenfassung
+
+`--summary` hängt die Anzahl der Verzeichnisse und Dateien unter dem Baum an:
+
+```console
+$ fsg src/fsg -i "*hook.py" -i "*project_tree.py" --summary --no-fence
+fsg/
+├── hooks/
+│   ├── git_hook.py
+│   ├── hook.py
+│   └── pre_commit_hook.py
+└── trees/
+    ├── git_project_tree.py
+    ├── plain_project_tree.py
+    └── project_tree.py
+
+2 directories, 6 files
+```
+
+## Nur ASCII
+
+Für Terminals und Schriftarten ohne Rahmenzeichen zeichnet `--ascii` den Stil `ascii` und ersetzt auch die Statussymbole:
+
+| Status | Standard | Mit `--ascii` |
+|--------|----------|---------------|
+| Erfolg | `✔`     | `[ok]`        |
+| Info   | `•`      | `[info]`      |
+| Fehler | `✖`     | `[error]`     |
